@@ -1,39 +1,42 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { MobileShell } from "@/components/MobileShell";
-import { getCurrentUser, store, logout, formatWeight, type User } from "@/lib/mockData";
 import { PackagePlus, AlertTriangle, BarChart3, LogOut, Recycle, Bell } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { formatWeight } from "@/lib/types";
 
 export default function OperatorHome() {
   const nav = useNavigate();
-  const [user, setUser] = useState<User | null>(null);
+  const { user, profile, signOut } = useAuth();
   const [stats, setStats] = useState({ deposits: 0, g: 0, alerts: 0 });
 
   useEffect(() => {
-    const u = getCurrentUser();
-    if (!u) { nav("/"); return; }
-    if (u.role !== "operator") { nav(u.role === "admin" ? "/admin" : "/home"); return; }
-    setUser(u);
-    const s = store.get();
-    const today = new Date().toDateString();
-    const todays = s.deposits.filter((d) => new Date(d.date).toDateString() === today);
-    setStats({
-      deposits: todays.length,
-      g: todays.reduce((a, d) => a + d.weightG, 0),
-      alerts: s.alerts.filter((a) => a.operatorId === u.id).length,
-    });
-  }, [nav]);
+    if (!user) return;
+    const startOfDay = new Date(); startOfDay.setHours(0,0,0,0);
+    (async () => {
+      const [{ data: deps }, { count: alertsCount }] = await Promise.all([
+        supabase.from("deposits").select("weight_g").eq("operator_id", user.id).gte("date", startOfDay.toISOString()),
+        supabase.from("alerts").select("id", { count: "exact", head: true }).eq("operator_id", user.id),
+      ]);
+      setStats({
+        deposits: (deps ?? []).length,
+        g: (deps ?? []).reduce((a, d: { weight_g: number }) => a + d.weight_g, 0),
+        alerts: alertsCount ?? 0,
+      });
+    })();
+  }, [user]);
 
-  if (!user) return null;
+  if (!profile) return null;
 
   return (
     <MobileShell withNav={false}>
       <header className="px-5 pt-6 pb-2 flex items-center justify-between">
         <div>
           <div className="text-xs text-muted-foreground uppercase tracking-wide">Operador</div>
-          <div className="font-bold text-lg leading-tight">{user.name}</div>
+          <div className="font-bold text-lg leading-tight">{profile.name}</div>
         </div>
-        <button onClick={() => { logout(); nav("/"); }} className="h-11 w-11 rounded-2xl bg-card shadow-card flex items-center justify-center">
+        <button onClick={async () => { await signOut(); nav("/"); }} className="h-11 w-11 rounded-2xl bg-card shadow-card flex items-center justify-center">
           <LogOut className="h-5 w-5" />
         </button>
       </header>

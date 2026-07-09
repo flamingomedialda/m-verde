@@ -1,26 +1,33 @@
 import { useEffect, useMemo, useState } from "react";
 import { MobileShell, PageHeader } from "@/components/MobileShell";
 import { BottomNav } from "@/components/BottomNav";
-import { getCurrentUser, store, formatWeight } from "@/lib/mockData";
 import { Recycle, FileWarning, Gift } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { listDepositsForCitizen, listRedemptionsForCitizen, listReportsForCitizen } from "@/lib/api";
+import { formatWeight } from "@/lib/types";
 
 interface Item { id: string; date: string; title: string; subtitle: string; kind: "deposit" | "report" | "redeem"; }
 
 export default function History() {
+  const { user } = useAuth();
   const [items, setItems] = useState<Item[]>([]);
+
   useEffect(() => {
-    const u = getCurrentUser();
-    const s = store.get();
-    const list: Item[] = [];
-    s.deposits.filter((d) => d.citizenId === u?.id).forEach((d) => list.push({
-      id: d.id, date: d.date, title: `+${d.points} pontos`, subtitle: `Depósito de ${formatWeight(d.weightG)} · ${d.materials.join(", ")}`, kind: "deposit",
-    }));
-    s.reports.filter((r) => r.citizenId === u?.id).forEach((r) => list.push({
-      id: r.id, date: r.date, title: "Reporte enviado", subtitle: `${r.type} · ${r.area}`, kind: "report",
-    }));
-    list.sort((a, b) => +new Date(b.date) - +new Date(a.date));
-    setItems(list);
-  }, []);
+    if (!user) return;
+    (async () => {
+      const [deps, reps, reds] = await Promise.all([
+        listDepositsForCitizen(user.id),
+        listReportsForCitizen(user.id),
+        listRedemptionsForCitizen(user.id),
+      ]);
+      const list: Item[] = [];
+      deps.forEach((d) => list.push({ id: d.id, date: d.date, title: `+${d.points} pontos`, subtitle: `Depósito de ${formatWeight(d.weight_g)} · ${d.materials.join(", ")}`, kind: "deposit" }));
+      reps.forEach((r) => list.push({ id: r.id, date: r.date, title: "Reporte enviado", subtitle: `${r.type} · ${r.area ?? ""}`, kind: "report" }));
+      reds.forEach((r) => list.push({ id: r.id, date: r.date, title: `Resgate: ${r.reward_name}`, subtitle: `-${r.points_cost} pontos`, kind: "redeem" }));
+      list.sort((a, b) => +new Date(b.date) - +new Date(a.date));
+      setItems(list);
+    })();
+  }, [user]);
 
   const grouped = useMemo(() => {
     const g: Record<string, Item[]> = {};

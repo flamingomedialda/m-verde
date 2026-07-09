@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { LayoutDashboard, MapPin, Users, PackageCheck, FileWarning, Bell, BarChart3, Settings, Leaf, LogOut } from "lucide-react";
-import { logout } from "@/lib/mockData";
+import { useAuth } from "@/hooks/useAuth";
 
 const items = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
@@ -16,6 +16,7 @@ const items = [
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const { pathname } = useLocation();
   const nav = useNavigate();
+  const { signOut } = useAuth();
   return (
     <div className="min-h-screen flex bg-muted/30">
       <aside className="hidden md:flex w-64 flex-col bg-sidebar border-r border-sidebar-border">
@@ -49,7 +50,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           })}
         </nav>
         <button
-          onClick={() => { logout(); nav("/"); }}
+          onClick={async () => { await signOut(); nav("/"); }}
           className="m-3 flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:bg-sidebar-accent/60"
         >
           <LogOut className="h-4 w-4" /> Terminar sessão

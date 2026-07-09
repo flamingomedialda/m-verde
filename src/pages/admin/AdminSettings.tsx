@@ -1,10 +1,11 @@
 import { useNavigate } from "react-router-dom";
 import { AdminLayout } from "@/components/AdminSidebar";
 import { Button } from "@/components/ui/button";
-import { store, logout } from "@/lib/mockData";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function AdminSettings() {
   const nav = useNavigate();
+  const { signOut } = useAuth();
   return (
     <AdminLayout>
       <div className="p-6 md:p-8 max-w-3xl mx-auto">
@@ -16,10 +17,12 @@ export default function AdminSettings() {
           <Row label="Idioma" value="Português" />
           <Row label="Moeda de recompensa" value="Pontos" />
           <Row label="Conversão" value="100 g = 1 ponto" />
+          <Row label="Backend" value="Supabase (externo)" />
         </div>
-        <div className="mt-4 flex gap-3 flex-wrap">
-          <Button variant="outline" className="rounded-xl" onClick={() => { store.reset(); location.reload(); }}>Repor dados de demonstração</Button>
-          <Button variant="destructive" className="rounded-xl" onClick={() => { logout(); nav("/"); }}>Terminar sessão</Button>
+        <div className="mt-4">
+          <Button variant="destructive" className="rounded-xl" onClick={async () => { await signOut(); nav("/"); }}>
+            Terminar sessão
+          </Button>
         </div>
       </div>
     </AdminLayout>
