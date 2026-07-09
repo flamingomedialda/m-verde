@@ -1,8 +1,11 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Leaf, ChevronDown } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { Leaf, Mail, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { DEMO_GOOGLE_ACCOUNTS, loginWithGoogle, type GoogleProfile } from "@/lib/mockData";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 function GoogleIcon({ className = "h-5 w-5" }: { className?: string }) {
   return (
@@ -14,26 +17,34 @@ function GoogleIcon({ className = "h-5 w-5" }: { className?: string }) {
 
 export default function Login() {
   const nav = useNavigate();
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const doLogin = (profile: GoogleProfile) => {
+  const signIn = async (e: React.FormEvent) => {
+    e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      const { user, isNew } = loginWithGoogle(profile);
-      if (isNew) return nav("/register");
-      if (!user) return setLoading(false);
-      if (user.role === "admin") nav("/admin");
-      else if (user.role === "operator") nav("/operator");
-      else nav("/home");
-    }, 350);
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    setLoading(false);
+    if (error) return toast.error(error.message);
+    toast.success("Sessão iniciada");
+    nav("/home", { replace: true });
+  };
+
+  const google = async () => {
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/home` },
+    });
+    if (error) { setLoading(false); toast.error(error.message); }
   };
 
   return (
     <div className="min-h-screen flex flex-col gradient-soft">
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-10">
         <div className="w-full max-w-sm">
-          <div className="flex flex-col items-center text-center mb-10">
+          <div className="flex flex-col items-center text-center mb-8">
             <div className="h-20 w-20 rounded-3xl gradient-green flex items-center justify-center shadow-soft mb-5">
               <Leaf className="h-10 w-10 text-white" />
             </div>
@@ -43,55 +54,41 @@ export default function Login() {
             </p>
           </div>
 
-          <div className="bg-card rounded-3xl p-6 shadow-card space-y-4">
+          <form onSubmit={signIn} className="bg-card rounded-3xl p-6 shadow-card space-y-4">
             <h2 className="text-base font-semibold text-center">Iniciar sessão</h2>
 
-            <Button
-              type="button"
-              variant="outline"
-              size="lg"
-              disabled={loading}
-              onClick={() => setPickerOpen((v) => !v)}
-              className="w-full h-14 rounded-2xl text-base font-semibold border-2 bg-white text-foreground hover:bg-white/90 flex items-center gap-3"
-            >
+            <Button type="button" variant="outline" size="lg" disabled={loading} onClick={google}
+              className="w-full h-12 rounded-2xl text-sm font-semibold border-2 bg-white text-foreground hover:bg-white/90 flex items-center gap-3">
               <GoogleIcon /> Continuar com Google
-              <ChevronDown className={`h-4 w-4 ml-auto transition ${pickerOpen ? "rotate-180" : ""}`} />
             </Button>
 
-            {pickerOpen && (
-              <div className="rounded-2xl border border-border bg-background overflow-hidden divide-y divide-border">
-                <div className="px-4 py-2.5 text-[11px] uppercase font-bold tracking-wide text-muted-foreground bg-muted/50">
-                  Escolher conta demo
-                </div>
-                {DEMO_GOOGLE_ACCOUNTS.map((a) => (
-                  <button
-                    key={a.googleId}
-                    onClick={() => doLogin(a)}
-                    disabled={loading}
-                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/50 text-left tap-scale"
-                  >
-                    <div className="h-9 w-9 rounded-full gradient-green text-white flex items-center justify-center font-bold text-sm">
-                      {a.name.charAt(0)}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="font-semibold text-sm truncate">{a.name}</div>
-                      <div className="text-xs text-muted-foreground truncate">{a.email}</div>
-                    </div>
-                    <GoogleIcon className="h-4 w-4" />
-                  </button>
-                ))}
-              </div>
-            )}
+            <div className="flex items-center gap-3 text-[11px] uppercase text-muted-foreground">
+              <div className="flex-1 h-px bg-border" /> ou <div className="flex-1 h-px bg-border" />
+            </div>
 
-            <p className="text-[11px] text-center text-muted-foreground pt-1">
-              Novos utilizadores serão levados para o registo.
+            <div>
+              <Label className="flex items-center gap-1.5"><Mail className="h-4 w-4" /> Email</Label>
+              <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
+                placeholder="voce@email.com" className="mt-1.5 h-12 rounded-xl" />
+            </div>
+            <div>
+              <Label className="flex items-center gap-1.5"><Lock className="h-4 w-4" /> Palavra-passe</Label>
+              <Input type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••" className="mt-1.5 h-12 rounded-xl" />
+            </div>
+
+            <Button type="submit" disabled={loading} size="lg" className="w-full h-12 rounded-2xl font-semibold shadow-soft">
+              {loading ? "A entrar…" : "Entrar"}
+            </Button>
+
+            <p className="text-xs text-center text-muted-foreground pt-1">
+              Ainda sem conta?{" "}
+              <Link to="/signup" className="text-primary font-semibold">Criar conta</Link>
             </p>
-          </div>
+          </form>
         </div>
       </div>
-      <div className="text-center text-xs text-muted-foreground pb-6">
-        © KUBASILE — Comunidade & Clima
-      </div>
+      <div className="text-center text-xs text-muted-foreground pb-6">© KUBASILE — Comunidade & Clima</div>
     </div>
   );
 }
