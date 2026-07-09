@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
 import App from "./App";
 import "./styles.css";
+import { AuthProvider } from "@/hooks/useAuth";
 
 const queryClient = new QueryClient();
 
@@ -12,8 +13,10 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <App />
-        <Toaster position="top-center" richColors />
+        <AuthProvider>
+          <App />
+          <Toaster position="top-center" richColors />
+        </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>
   </StrictMode>
