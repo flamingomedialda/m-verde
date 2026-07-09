@@ -1,6 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AdminLayout } from "@/components/AdminSidebar";
-import { store, type EcoPoint } from "@/lib/mockData";
 import { Plus, MapPin, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,36 +9,45 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { OLMap } from "@/components/OLMap";
 import { toast } from "sonner";
+import { createEcoPoint, deleteEcoPoint, listEcoPoints, updateEcoPoint } from "@/lib/api";
+import type { EcoPoint } from "@/lib/types";
 
-function emptyEp(): EcoPoint {
-  return { id: "", name: "", area: "", lat: -25.9692, lng: 32.5732, active: true, distanceKm: 0 };
+type Draft = Omit<EcoPoint, "id" | "created_at" | "distanceKm"> & { id?: string };
+
+function empty(): Draft {
+  return { name: "", area: "", address: null, lat: -25.9692, lng: 32.5732, materials: [], active: true, operator_id: null };
 }
 
 export default function AdminEcoPoints() {
-  const [items, setItems] = useState<EcoPoint[]>(store.get().ecoPoints);
-  const [editing, setEditing] = useState<EcoPoint | null>(null);
+  const [items, setItems] = useState<EcoPoint[]>([]);
+  const [editing, setEditing] = useState<Draft | null>(null);
   const [deleting, setDeleting] = useState<EcoPoint | null>(null);
-  const refresh = () => setItems([...store.get().ecoPoints]);
+  const refresh = () => listEcoPoints().then(setItems).catch(() => {});
+  useEffect(() => { refresh(); }, []);
 
-  const save = () => {
+  const save = async () => {
     if (!editing) return;
     if (!editing.name.trim() || !editing.area.trim()) return toast.error("Preencha nome e zona");
-    store.update((s) => {
-      if (editing.id) { const i = s.ecoPoints.findIndex((e) => e.id === editing.id); if (i >= 0) s.ecoPoints[i] = editing; }
-      else s.ecoPoints.push({ ...editing, id: "ep" + Date.now() });
-    });
-    refresh(); setEditing(null); toast.success("Eco Ponto guardado");
+    try {
+      if (editing.id) {
+        const { id, ...rest } = editing;
+        await updateEcoPoint(id, rest);
+      } else {
+        await createEcoPoint(editing);
+      }
+      await refresh(); setEditing(null); toast.success("Eco Ponto guardado");
+    } catch (e) { toast.error((e as Error).message); }
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deleting) return;
-    store.update((s) => { s.ecoPoints = s.ecoPoints.filter((e) => e.id !== deleting.id); });
-    refresh(); setDeleting(null); toast.success("Eco Ponto removido");
+    try { await deleteEcoPoint(deleting.id); await refresh(); setDeleting(null); toast.success("Eco Ponto removido"); }
+    catch (e) { toast.error((e as Error).message); }
   };
 
-  const toggle = (id: string) => {
-    store.update((s) => { const e = s.ecoPoints.find((x) => x.id === id); if (e) e.active = !e.active; });
-    refresh();
+  const toggle = async (e: EcoPoint) => {
+    try { await updateEcoPoint(e.id, { active: !e.active }); await refresh(); }
+    catch (err) { toast.error((err as Error).message); }
   };
 
   return (
@@ -47,7 +55,7 @@ export default function AdminEcoPoints() {
       <div className="p-6 md:p-8 max-w-7xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <div><h1 className="text-3xl font-bold">Eco Pontos</h1><p className="text-sm text-muted-foreground mt-1">Gerir locais de recolha em Moçambique</p></div>
-          <Button onClick={() => setEditing(emptyEp())} className="rounded-xl h-11"><Plus className="h-4 w-4" /> Criar Eco Ponto</Button>
+          <Button onClick={() => setEditing(empty())} className="rounded-xl h-11"><Plus className="h-4 w-4" /> Criar Eco Ponto</Button>
         </div>
 
         <div className="bg-card rounded-3xl shadow-card overflow-hidden mb-4">
@@ -67,13 +75,14 @@ export default function AdminEcoPoints() {
                   <td className="px-5 py-4"><div className="flex items-center gap-3"><div className="h-10 w-10 rounded-xl bg-accent text-primary flex items-center justify-center"><MapPin className="h-5 w-5" /></div><span className="font-semibold">{e.name}</span></div></td>
                   <td className="px-5 py-4 text-muted-foreground">{e.area}</td>
                   <td className="px-5 py-4 text-muted-foreground text-xs font-mono">{e.lat.toFixed(4)}, {e.lng.toFixed(4)}</td>
-                  <td className="px-5 py-4"><button onClick={() => toggle(e.id)}><Badge className={e.active ? "bg-success text-success-foreground" : "bg-muted text-muted-foreground"}>{e.active ? "Activo" : "Inactivo"}</Badge></button></td>
+                  <td className="px-5 py-4"><button onClick={() => toggle(e)}><Badge className={e.active ? "bg-success text-success-foreground" : "bg-muted text-muted-foreground"}>{e.active ? "Activo" : "Inactivo"}</Badge></button></td>
                   <td className="px-5 py-4 text-right"><div className="inline-flex gap-2">
                     <Button size="sm" variant="outline" onClick={() => setEditing({ ...e })}><Pencil className="h-3.5 w-3.5" /> Editar</Button>
                     <Button size="sm" variant="outline" className="text-danger" onClick={() => setDeleting(e)}><Trash2 className="h-3.5 w-3.5" /> Apagar</Button>
                   </div></td>
                 </tr>
               ))}
+              {items.length === 0 && <tr><td colSpan={5} className="text-center py-10 text-muted-foreground">Ainda sem Eco Pontos.</td></tr>}
             </tbody>
           </table>
         </div>

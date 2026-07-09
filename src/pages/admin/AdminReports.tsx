@@ -1,9 +1,12 @@
+import { useEffect, useState } from "react";
 import { AdminLayout } from "@/components/AdminSidebar";
-import { store } from "@/lib/mockData";
 import { FileWarning } from "lucide-react";
+import { listAllReports } from "@/lib/api";
+import type { Report } from "@/lib/types";
 
 export default function AdminReports() {
-  const reports = store.get().reports;
+  const [reports, setReports] = useState<Report[]>([]);
+  useEffect(() => { listAllReports().then(setReports).catch(() => {}); }, []);
   return (
     <AdminLayout>
       <div className="p-6 md:p-8 max-w-7xl mx-auto">
@@ -15,8 +18,9 @@ export default function AdminReports() {
               <div className="h-12 w-12 rounded-2xl bg-warning/10 text-warning flex items-center justify-center shrink-0"><FileWarning className="h-6 w-6" /></div>
               <div className="flex-1 min-w-0">
                 <div className="font-bold">{r.type}</div>
-                <div className="text-sm text-muted-foreground">{r.area}</div>
+                <div className="text-sm text-muted-foreground">{r.area ?? "—"}</div>
                 <div className="text-xs text-muted-foreground mt-1">{new Date(r.date).toLocaleString("pt-PT")}</div>
+                <div className="text-[10px] uppercase font-bold mt-1 text-primary">{r.status}</div>
               </div>
             </div>
           ))}

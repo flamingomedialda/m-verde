@@ -3,24 +3,29 @@ import { useNavigate } from "react-router-dom";
 import { MobileShell } from "@/components/MobileShell";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, Check, Camera, Droplets, Trash2, HeartPulse, AlertTriangle } from "lucide-react";
-import { store, getCurrentUser } from "@/lib/mockData";
 import { OLMap } from "@/components/OLMap";
+import { useAuth } from "@/hooks/useAuth";
+import { createAlert, uploadPhoto } from "@/lib/api";
+import { toast } from "sonner";
 
 const TYPES = [
-  { id: "flooding" as const, label: "Cheias", icon: Droplets, sev: "critical" as const },
-  { id: "trash" as const, label: "Acumulação de lixo", icon: Trash2, sev: "medium" as const },
-  { id: "health" as const, label: "Risco para a saúde", icon: HeartPulse, sev: "critical" as const },
-  { id: "drainage" as const, label: "Drenagem bloqueada", icon: AlertTriangle, sev: "medium" as const },
+  { id: "flooding", label: "Cheias", icon: Droplets, sev: "critical" as const },
+  { id: "trash", label: "Acumulação de lixo", icon: Trash2, sev: "medium" as const },
+  { id: "health", label: "Risco para a saúde", icon: HeartPulse, sev: "critical" as const },
+  { id: "drainage", label: "Drenagem bloqueada", icon: AlertTriangle, sev: "medium" as const },
 ];
 
 export default function OperatorAlertNew() {
   const nav = useNavigate();
+  const { user } = useAuth();
   const [step, setStep] = useState(1);
   const [type, setType] = useState<typeof TYPES[number] | null>(null);
-  const [photo, setPhoto] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [area, setArea] = useState("A detectar...");
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [done, setDone] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   const detect = () => {
     if (!("geolocation" in navigator)) { setArea("Maputo · KaMpfumo"); return; }
@@ -31,24 +36,25 @@ export default function OperatorAlertNew() {
     );
   };
 
-  const publish = () => {
-    if (!type) return;
-    const op = getCurrentUser();
-    store.update((s) => {
-      s.alerts.unshift({
-        id: "a" + Date.now(),
+  const publish = async () => {
+    if (!type || !user) return;
+    setBusy(true);
+    try {
+      let photo_url: string | null = null;
+      if (photoFile) photo_url = await uploadPhoto(photoFile, "alerts");
+      await createAlert({
+        operator_id: user.id,
         type: type.id,
-        severity: type.sev,
         title: type.label,
-        description: `Alerta criado pelo operador na zona de ${area}.`,
+        description: `Alerta criado pelo operador na zona de ${area}.${photo_url ? " (foto anexada)" : ""}`,
+        severity: type.sev,
         area,
-        date: new Date().toISOString(),
-        operatorId: op?.id,
-        lat: coords?.lat,
-        lng: coords?.lng,
+        lat: coords?.lat ?? null,
+        lng: coords?.lng ?? null,
       });
-    });
-    setDone(true);
+      setDone(true);
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusy(false); }
   };
 
   if (done) {
@@ -95,10 +101,11 @@ export default function OperatorAlertNew() {
           <label className="block">
             <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => {
               const f = e.target.files?.[0]; if (!f) return;
-              const r = new FileReader(); r.onload = () => setPhoto(r.result as string); r.readAsDataURL(f);
+              setPhotoFile(f);
+              const r = new FileReader(); r.onload = () => setPhotoPreview(r.result as string); r.readAsDataURL(f);
             }} />
-            <div className={`aspect-square rounded-3xl border-2 border-dashed flex flex-col items-center justify-center text-center p-6 ${photo ? "border-primary" : "border-border bg-card"}`}>
-              {photo ? <img src={photo} alt="" className="w-full h-full object-cover rounded-2xl" /> : (
+            <div className={`aspect-square rounded-3xl border-2 border-dashed flex flex-col items-center justify-center text-center p-6 ${photoPreview ? "border-primary" : "border-border bg-card"}`}>
+              {photoPreview ? <img src={photoPreview} alt="" className="w-full h-full object-cover rounded-2xl" /> : (
                 <><div className="h-16 w-16 rounded-2xl bg-accent flex items-center justify-center mb-3"><Camera className="h-8 w-8 text-primary" /></div><div className="font-semibold">Adicionar foto</div></>
               )}
             </div>
@@ -134,12 +141,12 @@ export default function OperatorAlertNew() {
 
       <div className="fixed bottom-0 inset-x-0 bg-background/95 backdrop-blur border-t border-border p-4 safe-bottom">
         <div className="max-w-md mx-auto">
-          <Button size="lg" disabled={step === 1 && !type} onClick={() => {
+          <Button size="lg" disabled={busy || (step === 1 && !type)} onClick={() => {
             if (step === 3) detect();
             if (step === 4) return publish();
             setStep(step + 1);
           }} className="w-full h-14 rounded-2xl text-base font-semibold shadow-soft">
-            {step === 4 ? "Publicar alerta" : "Continuar"}
+            {step === 4 ? (busy ? "A publicar…" : "Publicar alerta") : "Continuar"}
           </Button>
         </div>
       </div>

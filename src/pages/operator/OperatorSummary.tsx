@@ -2,24 +2,36 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { MobileShell } from "@/components/MobileShell";
 import { ChevronLeft, Recycle, Scale, Coins, Users } from "lucide-react";
-import { store, getCurrentUser, formatWeight, type Deposit } from "@/lib/mockData";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { formatWeight, type Deposit } from "@/lib/types";
+
+interface DepositWithCitizen extends Deposit {
+  citizen?: { id: string; name: string };
+}
 
 export default function OperatorSummary() {
   const nav = useNavigate();
-  const [deposits, setDeposits] = useState<Deposit[]>([]);
+  const { user } = useAuth();
+  const [deposits, setDeposits] = useState<DepositWithCitizen[]>([]);
 
   useEffect(() => {
-    const u = getCurrentUser();
-    if (!u || u.role !== "operator") { nav("/"); return; }
-    const today = new Date().toDateString();
-    setDeposits(store.get().deposits
-      .filter((d) => d.operatorId === u.id && new Date(d.date).toDateString() === today)
-      .sort((a, b) => +new Date(b.date) - +new Date(a.date)));
-  }, [nav]);
+    if (!user) return;
+    const startOfDay = new Date(); startOfDay.setHours(0,0,0,0);
+    (async () => {
+      const { data } = await supabase
+        .from("deposits")
+        .select("*, citizen:profiles!deposits_citizen_id_fkey(id,name)")
+        .eq("operator_id", user.id)
+        .gte("date", startOfDay.toISOString())
+        .order("date", { ascending: false });
+      setDeposits((data ?? []) as DepositWithCitizen[]);
+    })();
+  }, [user]);
 
-  const totalG = deposits.reduce((a, d) => a + d.weightG, 0);
+  const totalG = deposits.reduce((a, d) => a + d.weight_g, 0);
   const totalPts = deposits.reduce((a, d) => a + d.points, 0);
-  const uniqueCitizens = new Set(deposits.map((d) => d.citizenId)).size;
+  const uniqueCitizens = new Set(deposits.map((d) => d.citizen_id)).size;
 
   return (
     <MobileShell withNav={false}>
@@ -48,13 +60,13 @@ export default function OperatorSummary() {
         <div className="space-y-2">
           {deposits.map((d) => (
             <div key={d.id} className="bg-card rounded-2xl p-4 shadow-card flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-accent text-primary flex items-center justify-center font-bold">{d.citizenName[0]}</div>
+              <div className="h-10 w-10 rounded-xl bg-accent text-primary flex items-center justify-center font-bold">{(d.citizen?.name ?? "?").charAt(0)}</div>
               <div className="flex-1 min-w-0">
-                <div className="font-semibold text-sm truncate">{d.citizenName}</div>
+                <div className="font-semibold text-sm truncate">{d.citizen?.name ?? "—"}</div>
                 <div className="text-xs text-muted-foreground truncate">{d.materials.join(", ")} · {new Date(d.date).toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" })}</div>
               </div>
               <div className="text-right">
-                <div className="font-bold text-sm">{formatWeight(d.weightG)}</div>
+                <div className="font-bold text-sm">{formatWeight(d.weight_g)}</div>
                 <div className="text-xs text-primary font-semibold">+{d.points} pts</div>
               </div>
             </div>

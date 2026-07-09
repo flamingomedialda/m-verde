@@ -1,8 +1,13 @@
+import { useEffect, useState } from "react";
 import { AdminLayout } from "@/components/AdminSidebar";
-import { store, formatWeight } from "@/lib/mockData";
+import { listAllDeposits } from "@/lib/api";
+import { formatWeight, type Deposit } from "@/lib/types";
+
+type Row = Deposit & { citizen?: { id: string; name: string } };
 
 export default function AdminDeposits() {
-  const deposits = store.get().deposits;
+  const [deposits, setDeposits] = useState<Row[]>([]);
+  useEffect(() => { listAllDeposits().then((d) => setDeposits(d as Row[])).catch(() => {}); }, []);
   return (
     <AdminLayout>
       <div className="p-6 md:p-8 max-w-7xl mx-auto">
@@ -18,13 +23,14 @@ export default function AdminDeposits() {
             <tbody className="divide-y divide-border">
               {deposits.map((d) => (
                 <tr key={d.id} className="hover:bg-muted/30">
-                  <td className="px-5 py-4 font-semibold">{d.citizenName}</td>
+                  <td className="px-5 py-4 font-semibold">{d.citizen?.name ?? "—"}</td>
                   <td className="px-5 py-4 text-muted-foreground">{d.materials.join(", ")}</td>
-                  <td className="px-5 py-4 font-semibold">{d.weightG} g <span className="text-xs text-muted-foreground">({formatWeight(d.weightG)})</span></td>
+                  <td className="px-5 py-4 font-semibold">{d.weight_g} g <span className="text-xs text-muted-foreground">({formatWeight(d.weight_g)})</span></td>
                   <td className="px-5 py-4 text-primary font-bold">+{d.points}</td>
                   <td className="px-5 py-4 text-muted-foreground text-xs">{new Date(d.date).toLocaleString("pt-PT")}</td>
                 </tr>
               ))}
+              {deposits.length === 0 && <tr><td colSpan={5} className="text-center py-10 text-muted-foreground">Sem depósitos ainda.</td></tr>}
             </tbody>
           </table>
         </div>

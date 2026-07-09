@@ -1,11 +1,14 @@
+import { useEffect, useState } from "react";
 import { AdminLayout } from "@/components/AdminSidebar";
-import { store } from "@/lib/mockData";
 import { Bell } from "lucide-react";
+import { listAlerts } from "@/lib/api";
+import type { AlertItem } from "@/lib/types";
 
 const sev = { critical: "bg-danger/10 text-danger", medium: "bg-warning/10 text-warning", low: "bg-info/10 text-info" } as const;
 
 export default function AdminAlerts() {
-  const alerts = store.get().alerts;
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  useEffect(() => { listAlerts().then(setAlerts).catch(() => {}); }, []);
   return (
     <AdminLayout>
       <div className="p-6 md:p-8 max-w-7xl mx-auto">
@@ -20,11 +23,12 @@ export default function AdminAlerts() {
                   <h3 className="font-bold">{a.title}</h3>
                   <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${sev[a.severity]}`}>{a.severity}</span>
                 </div>
-                <p className="text-sm text-muted-foreground mt-1">{a.description}</p>
-                <div className="text-xs text-muted-foreground mt-2">📍 {a.area} · {new Date(a.date).toLocaleString("pt-PT")}</div>
+                {a.description && <p className="text-sm text-muted-foreground mt-1">{a.description}</p>}
+                <div className="text-xs text-muted-foreground mt-2">📍 {a.area ?? "—"} · {new Date(a.date).toLocaleString("pt-PT")}</div>
               </div>
             </div>
           ))}
+          {alerts.length === 0 && <div className="text-muted-foreground text-sm">Sem alertas.</div>}
         </div>
       </div>
     </AdminLayout>

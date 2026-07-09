@@ -3,8 +3,11 @@ import { Link, useNavigate } from "react-router-dom";
 import { MobileShell } from "@/components/MobileShell";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, Plus, Bell, Trash2, MapPin } from "lucide-react";
-import { store, getCurrentUser, type AlertItem } from "@/lib/mockData";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { deleteAlert } from "@/lib/api";
+import type { AlertItem } from "@/lib/types";
 
 const sevStyle = {
   critical: "bg-danger/10 text-danger",
@@ -14,28 +17,26 @@ const sevStyle = {
 
 export default function OperatorAlerts() {
   const nav = useNavigate();
+  const { user } = useAuth();
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
 
-  const refresh = () => {
-    const u = getCurrentUser();
-    if (!u || u.role !== "operator") { nav("/"); return; }
-    setAlerts(store.get().alerts.filter((a) => a.operatorId === u.id));
+  const refresh = async () => {
+    if (!user) return;
+    const { data } = await supabase.from("alerts").select("*").eq("operator_id", user.id).order("date", { ascending: false });
+    setAlerts((data ?? []) as AlertItem[]);
   };
 
-  useEffect(() => { refresh(); }, []);
+  useEffect(() => { refresh(); }, [user]);
 
-  const remove = (id: string) => {
-    store.update((s) => { s.alerts = s.alerts.filter((a) => a.id !== id); });
-    refresh();
-    toast.success("Alerta removido");
+  const remove = async (id: string) => {
+    try { await deleteAlert(id); await refresh(); toast.success("Alerta removido"); }
+    catch (e) { toast.error((e as Error).message); }
   };
 
   return (
     <MobileShell withNav={false}>
       <header className="px-5 pt-6 pb-3 flex items-center gap-3">
-        <button onClick={() => nav("/operator")} className="h-10 w-10 rounded-xl bg-card shadow-card flex items-center justify-center">
-          <ChevronLeft className="h-5 w-5" />
-        </button>
+        <button onClick={() => nav("/operator")} className="h-10 w-10 rounded-xl bg-card shadow-card flex items-center justify-center"><ChevronLeft className="h-5 w-5" /></button>
         <div className="flex-1">
           <div className="text-xs text-muted-foreground">Os meus alertas</div>
           <div className="font-semibold text-lg">Alertas publicados</div>
@@ -70,9 +71,9 @@ export default function OperatorAlerts() {
                   <h3 className="font-semibold leading-tight">{a.title}</h3>
                   <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${sevStyle[a.severity]}`}>{a.severity}</span>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{a.description}</p>
+                {a.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{a.description}</p>}
                 <div className="text-[11px] text-muted-foreground mt-1.5 flex items-center gap-1">
-                  <MapPin className="h-3 w-3" /> {a.area} · {new Date(a.date).toLocaleString("pt-PT")}
+                  <MapPin className="h-3 w-3" /> {a.area ?? "—"} · {new Date(a.date).toLocaleString("pt-PT")}
                 </div>
               </div>
               <Button size="sm" variant="ghost" className="text-danger" onClick={() => remove(a.id)}><Trash2 className="h-4 w-4" /></Button>
