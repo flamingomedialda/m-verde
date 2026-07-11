@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Leaf, Mail, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 
 function GoogleIcon({ className = "h-5 w-5" }: { className?: string }) {
   return (
@@ -17,9 +18,22 @@ function GoogleIcon({ className = "h-5 w-5" }: { className?: string }) {
 
 export default function Login() {
   const nav = useNavigate();
+  const { loading: authLoading, user, role } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  // Prevents running the redirect more than once per mount
+  const redirectedRef = useRef(false);
+
+  // Redirect already-authenticated users to their dashboard
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) return;
+    if (redirectedRef.current) return; // already redirected this session
+    redirectedRef.current = true;
+    const dest = role === "admin" ? "/admin" : role === "operator" ? "/operator" : role === "citizen" ? "/home" : "/register";
+    nav(dest, { replace: true });
+  }, [authLoading, user, role, nav]);
 
   const signIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,14 +42,16 @@ export default function Login() {
     setLoading(false);
     if (error) return toast.error(error.message);
     toast.success("Sessão iniciada");
-    nav("/home", { replace: true });
+    // Navigation is handled by the useEffect above
   };
 
   const google = async () => {
     setLoading(true);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${window.location.origin}/home` },
+      // Redirect back to / so the useEffect routes based on role:
+      // new users (no role) → /register, returning users → their home page
+      options: { redirectTo: `${window.location.origin}/` },
     });
     if (error) { setLoading(false); toast.error(error.message); }
   };

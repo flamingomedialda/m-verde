@@ -34,7 +34,7 @@ export default function Profile() {
         </div>
 
         <div className="mt-4 bg-card rounded-3xl shadow-card divide-y divide-border overflow-hidden">
-          <button onClick={() => nav("/register")} className="w-full flex items-center gap-3 px-4 py-4 text-left tap-scale">
+          <button onClick={() => nav("/edit-profile")} className="w-full flex items-center gap-3 px-4 py-4 text-left tap-scale">
             <div className="h-10 w-10 rounded-xl bg-muted flex items-center justify-center"><Settings className="h-5 w-5 text-muted-foreground" /></div>
             <span className="font-semibold">Editar perfil</span>
           </button>

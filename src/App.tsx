@@ -10,6 +10,7 @@ import Report from "@/pages/Report";
 import History from "@/pages/History";
 import Alerts from "@/pages/Alerts";
 import Profile from "@/pages/Profile";
+import EditProfile from "@/pages/EditProfile";
 import OperatorHome from "@/pages/operator/OperatorHome";
 import OperatorDeposit from "@/pages/operator/OperatorDeposit";
 import OperatorAlerts from "@/pages/operator/OperatorAlerts";
@@ -41,6 +42,7 @@ export default function App() {
       <Route path="/history" element={<ProtectedRoute allow={["citizen"]}><History /></ProtectedRoute>} />
       <Route path="/alerts" element={<ProtectedRoute><Alerts /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+      <Route path="/edit-profile" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />
 
       <Route path="/operator" element={<ProtectedRoute allow={["operator"]}><OperatorHome /></ProtectedRoute>} />
       <Route path="/operator/deposit" element={<ProtectedRoute allow={["operator"]}><OperatorDeposit /></ProtectedRoute>} />
