@@ -17,9 +17,10 @@ function GoogleIcon({ className = "h-5 w-5" }: { className?: string }) {
 }
 
 export default function Login() {
+  const { loading, user } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const signIn = async (e: React.FormEvent) => {
     e.preventDefault();
