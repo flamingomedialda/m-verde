@@ -75,7 +75,7 @@ export default function Login() {
           <form onSubmit={signIn} className="bg-card rounded-3xl p-6 shadow-card space-y-4">
             <h2 className="text-base font-semibold text-center">Iniciar sessão</h2>
 
-            <Button type="button" variant="outline" size="lg" disabled={loading} onClick={google}
+            <Button type="button" variant="outline" size="lg" disabled={busy} onClick={google}
               className="w-full h-12 rounded-2xl text-sm font-semibold border-2 bg-white text-foreground hover:bg-white/90 flex items-center gap-3">
               <GoogleIcon /> Continuar com Google
             </Button>
@@ -95,8 +95,8 @@ export default function Login() {
                 placeholder="••••••••" className="mt-1.5 h-12 rounded-xl" />
             </div>
 
-            <Button type="submit" disabled={loading} size="lg" className="w-full h-12 rounded-2xl font-semibold shadow-soft">
-              {loading ? "A entrar…" : "Entrar"}
+            <Button type="submit" disabled={busy} size="lg" className="w-full h-12 rounded-2xl font-semibold shadow-soft">
+              {busy ? "A entrar…" : "Entrar"}
             </Button>
 
             <p className="text-xs text-center text-muted-foreground pt-1">
