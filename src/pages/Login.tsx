@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 
 function GoogleIcon({ className = "h-5 w-5" }: { className?: string }) {
   return (
@@ -16,28 +17,46 @@ function GoogleIcon({ className = "h-5 w-5" }: { className?: string }) {
 }
 
 export default function Login() {
+  const { loading, user } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const signIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setSubmitting(true);
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-    setLoading(false);
+    setSubmitting(false);
     if (error) return toast.error(error.message);
     toast.success("Sessão iniciada");
     // Redireccionamento é tratado globalmente pelo <AuthGate />
   };
 
   const google = async () => {
-    setLoading(true);
+    setSubmitting(true);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo: `${window.location.origin}/` },
     });
-    if (error) { setLoading(false); toast.error(error.message); }
+    if (error) { setSubmitting(false); toast.error(error.message); }
   };
+
+  // Enquanto verifica sessão ou se já existe utilizador autenticado,
+  // não mostrar o formulário de login — o AuthGate trata do redirect.
+  if (loading || user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center gradient-soft">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-14 w-14 rounded-2xl gradient-green flex items-center justify-center shadow-soft animate-pulse">
+            <Leaf className="h-7 w-7 text-white" />
+          </div>
+          <p className="text-sm text-muted-foreground">A verificar sessão…</p>
+        </div>
+      </div>
+    );
+  }
+
+  const busy = submitting;
 
   return (
     <div className="min-h-screen flex flex-col gradient-soft">
@@ -56,7 +75,7 @@ export default function Login() {
           <form onSubmit={signIn} className="bg-card rounded-3xl p-6 shadow-card space-y-4">
             <h2 className="text-base font-semibold text-center">Iniciar sessão</h2>
 
-            <Button type="button" variant="outline" size="lg" disabled={loading} onClick={google}
+            <Button type="button" variant="outline" size="lg" disabled={busy} onClick={google}
               className="w-full h-12 rounded-2xl text-sm font-semibold border-2 bg-white text-foreground hover:bg-white/90 flex items-center gap-3">
               <GoogleIcon /> Continuar com Google
             </Button>
@@ -76,8 +95,8 @@ export default function Login() {
                 placeholder="••••••••" className="mt-1.5 h-12 rounded-xl" />
             </div>
 
-            <Button type="submit" disabled={loading} size="lg" className="w-full h-12 rounded-2xl font-semibold shadow-soft">
-              {loading ? "A entrar…" : "Entrar"}
+            <Button type="submit" disabled={busy} size="lg" className="w-full h-12 rounded-2xl font-semibold shadow-soft">
+              {busy ? "A entrar…" : "Entrar"}
             </Button>
 
             <p className="text-xs text-center text-muted-foreground pt-1">
