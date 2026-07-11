@@ -39,18 +39,14 @@ export function AuthGate() {
       return;
     }
 
-    // 2. Sessão sem role -> registo
-    if (!role) {
-      go("/register");
-      return;
-    }
+  
 
     // 3. Home por role
     const homeByRole =
       role === "admin" ? "/admin" : role === "operator" ? "/operator" : "/home";
 
     // Se está numa rota pública ou em /register já com role -> ir para home da role
-    if (PUBLIC_ROUTES.has(path) || path === "/register") {
+    if (PUBLIC_ROUTES.has(path)) {
       go(homeByRole);
       return;
     }

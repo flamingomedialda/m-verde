@@ -21,16 +21,12 @@ export default function SignUp() {
     const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
       password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/register`,
-        data: { name: name.trim() },
-      },
     });
     setLoading(false);
     if (error) return toast.error(error.message);
     if (data.session) {
       toast.success("Conta criada");
-      nav("/register", { replace: true });
+      nav("/home", { replace: true });
     } else {
       toast.success("Verifique o seu email para confirmar a conta");
       nav("/");

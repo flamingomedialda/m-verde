@@ -18,7 +18,7 @@ export function ProtectedRoute({
     );
   }
   if (!user) return <Navigate to="/" replace />;
-  if (!role) return <Navigate to="/register" replace />;
+  if (!role) return <Navigate to="/home" replace />;
   if (allow && !allow.includes(role)) {
     const home = role === "admin" ? "/admin" : role === "operator" ? "/operator" : "/home";
     return <Navigate to={home} replace />;
