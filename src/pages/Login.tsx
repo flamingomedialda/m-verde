@@ -24,22 +24,39 @@ export default function Login() {
 
   const signIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setSubmitting(true);
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-    setLoading(false);
+    setSubmitting(false);
     if (error) return toast.error(error.message);
     toast.success("Sessão iniciada");
     // Redireccionamento é tratado globalmente pelo <AuthGate />
   };
 
   const google = async () => {
-    setLoading(true);
+    setSubmitting(true);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo: `${window.location.origin}/` },
     });
-    if (error) { setLoading(false); toast.error(error.message); }
+    if (error) { setSubmitting(false); toast.error(error.message); }
   };
+
+  // Enquanto verifica sessão ou se já existe utilizador autenticado,
+  // não mostrar o formulário de login — o AuthGate trata do redirect.
+  if (loading || user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center gradient-soft">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-14 w-14 rounded-2xl gradient-green flex items-center justify-center shadow-soft animate-pulse">
+            <Leaf className="h-7 w-7 text-white" />
+          </div>
+          <p className="text-sm text-muted-foreground">A verificar sessão…</p>
+        </div>
+      </div>
+    );
+  }
+
+  const busy = submitting;
 
   return (
     <div className="min-h-screen flex flex-col gradient-soft">
