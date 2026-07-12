@@ -81,6 +81,16 @@ export interface Redemption {
 export const POINTS_PER_100G = 1;
 export const pointsForGrams = (g: number) => Math.floor(g / 100) * POINTS_PER_100G;
 
+// Pontos por 100 g em função do tipo de material
+export const MATERIAL_POINTS_PER_100G: Record<string, number> = {
+  "Plástico": 2,
+  "Vidro": 1,
+  "Papel": 1,
+  "Metal": 3,
+};
+export const pointsForMaterial = (material: string, g: number) =>
+  Math.floor(g / 100) * (MATERIAL_POINTS_PER_100G[material] ?? 1);
+
 export function formatWeight(g: number): string {
   if (g >= 1000) return `${(g / 1000).toFixed(g % 1000 === 0 ? 0 : 1)} kg`;
   return `${g} g`;
