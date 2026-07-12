@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
-import { updateProfile, uploadPhoto } from "@/lib/api";
+import { updateProfile, uploadPhoto, isPhoneTaken } from "@/lib/api";
 import type { Gender } from "@/lib/types";
 
 export default function EditProfile() {
