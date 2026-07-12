@@ -66,6 +66,9 @@ export default function EditProfile() {
         return toast.error("Não foi possível validar o telemóvel: " + (e as Error).message);
       }
     }
+
+    setSaving(true);
+    try {
       let avatar_url = profile.avatar_url;
       if (avatarFile) {
         avatar_url = await uploadPhoto(avatarFile, "avatars");
