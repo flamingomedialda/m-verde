@@ -95,11 +95,27 @@ export async function createDeposit(row: {
   materials: string[];
   weight_g: number;
   photo_url?: string | null;
+  points?: number;
 }) {
-  const points = pointsForGrams(row.weight_g);
+  const points = row.points ?? pointsForGrams(row.weight_g);
   const { data, error } = await supabase.from("deposits").insert({ ...row, points }).select().single();
   if (error) throw error;
   return data as Deposit;
+}
+
+// Check whether a phone is already registered by another profile
+export async function isPhoneTaken(phone: string, excludeUserId?: string): Promise<boolean> {
+  const q = supabase.from("profiles").select("id").eq("phone", phone.trim()).limit(1);
+  const { data, error } = await q;
+  if (error) throw error;
+  const list = (data ?? []) as { id: string }[];
+  return list.some((r) => r.id !== excludeUserId);
+}
+
+// Update alert
+export async function updateAlert(id: string, patch: Partial<AlertItem>) {
+  const { error } = await supabase.from("alerts").update(patch).eq("id", id);
+  if (error) throw error;
 }
 
 // -------------------- Reports --------------------
