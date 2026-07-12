@@ -34,6 +34,8 @@ create table if not exists public.profiles (
   eco_point_id uuid,
   created_at timestamptz not null default now()
 );
+-- Cada número de telemóvel pertence a apenas um perfil.
+create unique index if not exists profiles_phone_unique on public.profiles(phone) where phone is not null;
 grant select on public.profiles to anon;
 grant select, insert, update on public.profiles to authenticated;
 grant all on public.profiles to service_role;

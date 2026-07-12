@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
-import { updateProfile, uploadPhoto } from "@/lib/api";
+import { updateProfile, uploadPhoto, isPhoneTaken } from "@/lib/api";
 import type { Gender } from "@/lib/types";
 
 export default function EditProfile() {
@@ -55,6 +55,17 @@ export default function EditProfile() {
     if (!user || !profile) return;
     if (!name.trim()) return toast.error("Insira o seu nome");
     if (!address.trim()) return toast.error("Indique a sua morada");
+    const phoneTrim = phone.trim();
+    if (!phoneTrim || phoneTrim === "+258") return toast.error("Indique o número de telemóvel");
+    // Only re-check uniqueness if phone changed
+    if (phoneTrim !== (profile.phone ?? "")) {
+      try {
+        const taken = await isPhoneTaken(phoneTrim, user.id);
+        if (taken) return toast.error("Este número de telemóvel já está registado noutro perfil.");
+      } catch (e) {
+        return toast.error("Não foi possível validar o telemóvel: " + (e as Error).message);
+      }
+    }
 
     setSaving(true);
     try {
