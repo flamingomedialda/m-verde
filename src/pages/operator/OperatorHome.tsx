@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { MobileShell } from "@/components/MobileShell";
-import { PackagePlus, AlertTriangle, BarChart3, LogOut, Recycle, Bell } from "lucide-react";
+import { PackagePlus, AlertTriangle, BarChart3, LogOut, Recycle, Bell, MapPin, CheckCircle2, XCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { formatWeight } from "@/lib/types";
+import { assertOperatorInRadius, getOperatorEcoPoint } from "@/lib/geo";
+import { toast } from "sonner";
 
 export default function OperatorHome() {
   const nav = useNavigate();
@@ -42,6 +44,9 @@ export default function OperatorHome() {
           <LogOut className="h-5 w-5" />
         </button>
       </header>
+
+      <EcoPointBadge />
+
 
       <section className="px-5 mt-4 grid grid-cols-3 gap-2">
         <Kpi label="Depósitos hoje" value={String(stats.deposits)} icon={Recycle} tone="green" />

@@ -6,6 +6,7 @@ import { ChevronLeft, Check, Camera, Droplets, Trash2, HeartPulse, AlertTriangle
 import { OLMap } from "@/components/OLMap";
 import { useAuth } from "@/hooks/useAuth";
 import { createAlert, uploadPhoto } from "@/lib/api";
+import { assertOperatorInRadius } from "@/lib/geo";
 import { toast } from "sonner";
 
 const TYPES = [
@@ -40,6 +41,12 @@ export default function OperatorAlertNew() {
     if (!type || !user) return;
     setBusy(true);
     try {
+      const check = await assertOperatorInRadius();
+      if (!check.ok) {
+        toast.error(check.error ?? `Fora do raio permitido: ${Math.round(check.distance)} m (máx. 100 m).`);
+        setBusy(false);
+        return;
+      }
       let photo_url: string | null = null;
       if (photoFile) photo_url = await uploadPhoto(photoFile, "alerts");
       await createAlert({
