@@ -1,5 +1,5 @@
 -- =====================================================================
--- KUBASILE — Schema inicial
+-- KUBASILE — Schema
 -- COPIE TUDO e cole no SQL Editor do seu projeto Supabase, e execute.
 -- Depois: Storage → confirmar bucket 'kubasile-photos' público.
 -- =====================================================================
@@ -18,6 +18,10 @@ do $$ begin
   create type public.alert_severity as enum ('low','medium','critical');
 exception when duplicate_object then null; end $$;
 
+do $$ begin
+  create type public.product_category as enum ('recharge','food','stationery','other');
+exception when duplicate_object then null; end $$;
+
 -- ============================ TABELAS ================================
 
 create table if not exists public.profiles (
@@ -32,9 +36,10 @@ create table if not exists public.profiles (
   total_g int not null default 0,
   reports_count int not null default 0,
   eco_point_id uuid,
+  blocked boolean not null default false,
   created_at timestamptz not null default now()
 );
--- Cada número de telemóvel pertence a apenas um perfil.
+alter table public.profiles add column if not exists blocked boolean not null default false;
 create unique index if not exists profiles_phone_unique on public.profiles(phone) where phone is not null;
 grant select on public.profiles to anon;
 grant select, insert, update on public.profiles to authenticated;
@@ -121,11 +126,62 @@ create table if not exists public.redemptions (
   citizen_id uuid not null references public.profiles(id) on delete cascade,
   reward_name text not null,
   points_cost int not null,
+  product_id uuid,
+  eco_point_id uuid,
+  recharge_code text,
+  status text not null default 'completed',
   date timestamptz not null default now()
 );
+alter table public.redemptions add column if not exists product_id uuid;
+alter table public.redemptions add column if not exists eco_point_id uuid;
+alter table public.redemptions add column if not exists recharge_code text;
+alter table public.redemptions add column if not exists status text not null default 'completed';
 grant select, insert on public.redemptions to authenticated;
 grant all on public.redemptions to service_role;
 alter table public.redemptions enable row level security;
+
+-- =========================== MARKETPLACE ============================
+
+create table if not exists public.products (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  category public.product_category not null,
+  points_cost int not null check (points_cost > 0),
+  description text,
+  image_url text,
+  active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+grant select on public.products to anon, authenticated;
+grant insert, update, delete on public.products to authenticated;
+grant all on public.products to service_role;
+alter table public.products enable row level security;
+
+create table if not exists public.recharge_codes (
+  id uuid primary key default gen_random_uuid(),
+  product_id uuid not null references public.products(id) on delete cascade,
+  code text not null,
+  status text not null default 'available' check (status in ('available','reserved','used')),
+  used_by uuid references public.profiles(id) on delete set null,
+  used_at timestamptz,
+  created_at timestamptz not null default now(),
+  unique (product_id, code)
+);
+grant select, insert, update, delete on public.recharge_codes to authenticated;
+grant all on public.recharge_codes to service_role;
+alter table public.recharge_codes enable row level security;
+
+create table if not exists public.product_stock (
+  id uuid primary key default gen_random_uuid(),
+  product_id uuid not null references public.products(id) on delete cascade,
+  eco_point_id uuid not null references public.eco_points(id) on delete cascade,
+  quantity int not null default 0 check (quantity >= 0),
+  unique (product_id, eco_point_id)
+);
+grant select on public.product_stock to anon, authenticated;
+grant insert, update, delete on public.product_stock to authenticated;
+grant all on public.product_stock to service_role;
+alter table public.product_stock enable row level security;
 
 -- ======================= SECURITY DEFINER ============================
 
@@ -133,6 +189,65 @@ create or replace function public.has_role(_user_id uuid, _role public.app_role)
 returns boolean language sql stable security definer set search_path = public as $$
   select exists (select 1 from public.user_roles where user_id = _user_id and role = _role)
 $$;
+
+-- Trocar produto atomicamente
+create or replace function public.redeem_product(_product_id uuid, _eco_point_id uuid default null)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  _uid uuid := auth.uid();
+  _prod public.products%rowtype;
+  _profile public.profiles%rowtype;
+  _code text;
+  _code_id uuid;
+begin
+  if _uid is null then raise exception 'not_authenticated'; end if;
+
+  select * into _prod from public.products where id = _product_id and active = true;
+  if not found then raise exception 'product_not_found'; end if;
+
+  select * into _profile from public.profiles where id = _uid for update;
+  if _profile.points < _prod.points_cost then raise exception 'insufficient_points'; end if;
+
+  if _prod.category = 'recharge' then
+    select id, code into _code_id, _code
+      from public.recharge_codes
+      where product_id = _product_id and status = 'available'
+      order by created_at asc
+      limit 1
+      for update skip locked;
+    if _code is null then raise exception 'out_of_stock'; end if;
+    update public.recharge_codes
+      set status = 'used', used_by = _uid, used_at = now()
+      where id = _code_id;
+
+    insert into public.redemptions (citizen_id, reward_name, points_cost, product_id, recharge_code, status)
+      values (_uid, _prod.name, _prod.points_cost, _prod.id, _code, 'completed');
+  else
+    if _eco_point_id is null then raise exception 'eco_point_required'; end if;
+    update public.product_stock
+      set quantity = quantity - 1
+      where product_id = _product_id and eco_point_id = _eco_point_id and quantity > 0
+      returning quantity into _code_id; -- reuse var, ignore
+    if not found then raise exception 'out_of_stock'; end if;
+
+    insert into public.redemptions (citizen_id, reward_name, points_cost, product_id, eco_point_id, status)
+      values (_uid, _prod.name, _prod.points_cost, _prod.id, _eco_point_id, 'pending_pickup');
+  end if;
+
+  update public.profiles set points = points - _prod.points_cost where id = _uid;
+
+  return jsonb_build_object(
+    'success', true,
+    'product', _prod.name,
+    'code', _code,
+    'category', _prod.category
+  );
+end $$;
+grant execute on function public.redeem_product(uuid, uuid) to authenticated;
 
 -- ============================== RLS ==================================
 
@@ -207,6 +322,29 @@ create policy "redemptions self" on public.redemptions for select
 drop policy if exists "redemptions self insert" on public.redemptions;
 create policy "redemptions self insert" on public.redemptions for insert with check (auth.uid() = citizen_id);
 
+-- Products / stock / codes
+drop policy if exists "products read" on public.products;
+create policy "products read" on public.products for select using (true);
+drop policy if exists "products admin write" on public.products;
+create policy "products admin write" on public.products for all
+  using (public.has_role(auth.uid(),'admin'))
+  with check (public.has_role(auth.uid(),'admin'));
+
+drop policy if exists "stock read" on public.product_stock;
+create policy "stock read" on public.product_stock for select using (true);
+drop policy if exists "stock admin write" on public.product_stock;
+create policy "stock admin write" on public.product_stock for all
+  using (public.has_role(auth.uid(),'admin'))
+  with check (public.has_role(auth.uid(),'admin'));
+
+drop policy if exists "codes admin" on public.recharge_codes;
+create policy "codes admin" on public.recharge_codes for all
+  using (public.has_role(auth.uid(),'admin'))
+  with check (public.has_role(auth.uid(),'admin'));
+drop policy if exists "codes owner read" on public.recharge_codes;
+create policy "codes owner read" on public.recharge_codes for select
+  using (used_by = auth.uid() or public.has_role(auth.uid(),'admin'));
+
 -- ========================== TRIGGERS =================================
 
 create or replace function public.handle_new_user()
@@ -252,18 +390,6 @@ drop trigger if exists trg_after_report_insert on public.reports;
 create trigger trg_after_report_insert after insert on public.reports
   for each row execute function public.after_report_insert();
 
-create or replace function public.after_redemption_insert()
-returns trigger language plpgsql security definer set search_path = public as $$
-begin
-  update public.profiles set points = greatest(points - coalesce(new.points_cost,0), 0)
-   where id = new.citizen_id;
-  return new;
-end $$;
-
-drop trigger if exists trg_after_redemption_insert on public.redemptions;
-create trigger trg_after_redemption_insert after insert on public.redemptions
-  for each row execute function public.after_redemption_insert();
-
 -- =========================== STORAGE =================================
 insert into storage.buckets (id, name, public) values ('kubasile-photos','kubasile-photos', true)
 on conflict (id) do nothing;
@@ -278,17 +404,3 @@ create policy "photos auth upload" on storage.objects for insert
 drop policy if exists "photos auth update" on storage.objects;
 create policy "photos auth update" on storage.objects for update
   using (bucket_id = 'kubasile-photos' and auth.role() = 'authenticated');
-
--- =================== PROMOVER 1º ADMIN (correr 1x) ===================
--- 1) Faça signup normal na app com o email do admin.
--- 2) Depois execute (substituindo o email):
---
--- insert into public.user_roles (user_id, role)
--- select id, 'admin' from auth.users where email = 'admin@kubasile.mz'
--- on conflict do nothing;
---
--- delete from public.user_roles
---  where user_id = (select id from auth.users where email='admin@kubasile.mz')
---    and role = 'citizen';
---
--- Para promover operador, use 'operator' em vez de 'admin'.
