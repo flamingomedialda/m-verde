@@ -1,5 +1,8 @@
 import { supabase, PHOTOS_BUCKET } from "@/integrations/supabase/client";
-import type { AlertItem, Deposit, EcoPoint, Profile, Redemption, Report, Role } from "@/lib/types";
+import type {
+  AlertItem, Deposit, EcoPoint, Product, ProductCategory, ProductStock,
+  Profile, RechargeCode, Redemption, Report, Role,
+} from "@/lib/types";
 import { pointsForGrams } from "@/lib/types";
 
 // -------------------- Profiles --------------------
@@ -194,3 +197,103 @@ export async function uploadPhoto(file: File, folder = "misc"): Promise<string> 
   const { data } = supabase.storage.from(PHOTOS_BUCKET).getPublicUrl(path);
   return data.publicUrl;
 }
+
+// -------------------- Admin: Users --------------------
+export interface UserWithRole extends Profile {
+  email?: string | null;
+  effective_role: Role | null;
+}
+export async function listAllUsers(): Promise<UserWithRole[]> {
+  const [{ data: profiles, error: e1 }, { data: roles, error: e2 }] = await Promise.all([
+    supabase.from("profiles").select("*").order("created_at", { ascending: false }),
+    supabase.from("user_roles").select("user_id, role"),
+  ]);
+  if (e1) throw e1;
+  if (e2) throw e2;
+  const rolesByUser = new Map<string, Role[]>();
+  (roles ?? []).forEach((r: { user_id: string; role: Role }) => {
+    const arr = rolesByUser.get(r.user_id) ?? [];
+    arr.push(r.role);
+    rolesByUser.set(r.user_id, arr);
+  });
+  return (profiles ?? []).map((p: Profile) => {
+    const list = rolesByUser.get(p.id) ?? [];
+    const eff: Role | null = list.includes("admin") ? "admin"
+      : list.includes("operator") ? "operator"
+        : list.includes("citizen") ? "citizen" : null;
+    return { ...p, effective_role: eff };
+  });
+}
+export async function setBlocked(userId: string, blocked: boolean) {
+  const { error } = await supabase.from("profiles").update({ blocked }).eq("id", userId);
+  if (error) throw error;
+}
+
+// -------------------- Marketplace: Products --------------------
+export async function listProducts(activeOnly = false): Promise<Product[]> {
+  let q = supabase.from("products").select("*").order("created_at", { ascending: false });
+  if (activeOnly) q = q.eq("active", true);
+  const { data, error } = await q;
+  if (error) throw error;
+  return (data ?? []) as Product[];
+}
+export async function createProduct(row: Omit<Product, "id" | "created_at">): Promise<Product> {
+  const { data, error } = await supabase.from("products").insert(row).select().single();
+  if (error) throw error;
+  return data as Product;
+}
+export async function updateProduct(id: string, patch: Partial<Product>) {
+  const { error } = await supabase.from("products").update(patch).eq("id", id);
+  if (error) throw error;
+}
+export async function deleteProduct(id: string) {
+  const { error } = await supabase.from("products").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// Codes
+export async function listCodesForProduct(productId: string): Promise<RechargeCode[]> {
+  const { data, error } = await supabase.from("recharge_codes").select("*").eq("product_id", productId).order("created_at");
+  if (error) throw error;
+  return (data ?? []) as RechargeCode[];
+}
+export async function addCodes(productId: string, codes: string[]) {
+  if (!codes.length) return;
+  const rows = codes.map((code) => ({ product_id: productId, code }));
+  const { error } = await supabase.from("recharge_codes").insert(rows);
+  if (error) throw error;
+}
+export async function deleteCode(id: string) {
+  const { error } = await supabase.from("recharge_codes").delete().eq("id", id);
+  if (error) throw error;
+}
+export async function countAvailableCodes(productId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from("recharge_codes").select("id", { count: "exact", head: true })
+    .eq("product_id", productId).eq("status", "available");
+  if (error) throw error;
+  return count ?? 0;
+}
+
+// Stock físico por eco-ponto
+export async function listStockForProduct(productId: string): Promise<ProductStock[]> {
+  const { data, error } = await supabase.from("product_stock").select("*").eq("product_id", productId);
+  if (error) throw error;
+  return (data ?? []) as ProductStock[];
+}
+export async function upsertStock(product_id: string, eco_point_id: string, quantity: number) {
+  const { error } = await supabase.from("product_stock")
+    .upsert({ product_id, eco_point_id, quantity }, { onConflict: "product_id,eco_point_id" });
+  if (error) throw error;
+}
+
+// Trocar produto (RPC atómico)
+export async function redeemProduct(productId: string, ecoPointId?: string | null) {
+  const { data, error } = await supabase.rpc("redeem_product", {
+    _product_id: productId,
+    _eco_point_id: ecoPointId ?? null,
+  });
+  if (error) throw error;
+  return data as { success: boolean; product: string; code: string | null; category: ProductCategory };
+}
+

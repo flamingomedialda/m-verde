@@ -1,82 +1,108 @@
-# Migração KUBASILE para Supabase
+# Plano — Fase 3
 
-## 1. Configuração inicial
+Vou implementar em blocos independentes. Cada bloco tem alterações de código + (quando necessário) migração de base de dados.
 
-- Instalar `@supabase/supabase-js`.
-- Criar `src/integrations/supabase/client.ts` com URL + anon key fornecidas.
-- Criar `.env.local` com `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`.
-- Gerar ficheiro **`supabase/migrations/0001_init.sql`** pronto para colar no SQL Editor do seu projeto Supabase (ou correr via CLI).
+## 1. Geofencing do Operador (raio 100m)
 
-## 2. Schema da base de dados
+- Ao carregar `useAuth` para um utilizador com role `operator`, ir buscar o eco-ponto associado (via `profile.eco_point_id`) e guardar em `localStorage` sob a chave `kubasile-operator-ecopoint` (`{id, name, lat, lng, area, cached_at}`).
+- Criar helper `src/lib/geo.ts` com `haversineMeters(lat1,lng1,lat2,lng2)` e `getCurrentPosition()` (Promise wrapper de `navigator.geolocation`).
+- Em `OperatorDeposit.tsx` (e `OperatorAlertNew.tsx`): antes de submeter, obter posição actual; se distância > 100 m ao eco-ponto em cache → bloquear com toast "Fora do raio permitido (100 m do Eco Ponto X)".
+- Mostrar no topo do `OperatorHome` um badge com o nome do eco-ponto associado e um botão "Verificar localização" que dá feedback visual (dentro/fora do raio).
+- Cache é invalidada ao logout e ao mudar de operador; refresca se `eco_point_id` do profile mudar.
 
-Tabelas em `public`:
+## 2. Sessão persistente offline
 
-```text
-profiles           id (uuid PK → auth.users), name, phone, gender, address, area,
-                   points, avatar_url, created_at
-app_role (enum)    'admin' | 'operator' | 'citizen'
-user_roles         id, user_id → auth.users, role app_role, unique(user_id, role)
-eco_points         id, name, address, lat, lng, materials text[], active bool,
-                   operator_id → profiles, created_at
-deposits           id, citizen_id → profiles, operator_id → profiles,
-                   eco_point_id → eco_points, materials text[], weight_g int,
-                   points int, photo_url, date timestamptz
-reports            id, citizen_id → profiles, type, area, description,
-                   lat, lng, photo_url, status ('open'|'in_progress'|'resolved'),
-                   date timestamptz
-alerts             id, operator_id → profiles, title, description, severity
-                   ('low'|'medium'|'critical'), area, lat, lng, date timestamptz
-redemptions        id, citizen_id → profiles, reward_name, points_cost, date
+Problema: quando cai a rede, `onAuthStateChange` pode disparar `SIGNED_OUT` porque o refresh token falha.
+
+Correcções em `useAuth.tsx` + `client.ts`:
+- Já usamos `persistSession: true` + `localStorage`. Adicionar tratamento no listener: ignorar transições para `null` quando o motivo é falha de rede — só limpar estado no evento `SIGNED_OUT` explícito.
+- Fazer cache do `profile` e `role` em `localStorage` (`kubasile-profile`, `kubasile-role`) e hidratar imediatamente no arranque, antes do `INITIAL_SESSION`, para que a UI não pisque nem redireccione para login se offline.
+- No `AuthGate`: só redireccionar para `/` quando `!session && !cachedRole` (ou seja, realmente sem credenciais). Se houver sessão em cache mas sem rede, deixar o utilizador continuar.
+- Adicionar listener `window.addEventListener('online', () => supabase.auth.refreshSession())` para re-sincronizar quando volta a rede.
+
+## 3. Módulo Admin — Gestão de Utilizadores
+
+Nova página `src/pages/admin/AdminUsers.tsx` + rota + item no `AdminSidebar`.
+
+Funcionalidades:
+- Listar todos os profiles com role (join com `user_roles`), paginação simples client-side.
+- Filtros: por nome/telemóvel (search), por role (todos / cidadão / operador / admin), por estado (activo / bloqueado).
+- Acções por linha: **Promover a admin**, **Despromover**, **Bloquear / Desbloquear**, **Ver detalhes** (deposits, pontos, reports).
+- Adicionar coluna `blocked boolean default false` em `profiles` (migração).
+- Ao bloquear: `blocked=true`; `AuthGate` verifica `profile.blocked` e força logout com mensagem "Conta bloqueada. Contacte o suporte."
+
+Migração:
+```sql
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS blocked boolean NOT NULL DEFAULT false;
 ```
 
-Todas com:
-- `GRANT` explícito para `authenticated` + `service_role` (e `anon SELECT` em `eco_points` e `alerts` para leitura pública opcional).
-- `ENABLE ROW LEVEL SECURITY`.
-- Função `public.has_role(uuid, app_role) SECURITY DEFINER` para evitar recursão.
-- Trigger `handle_new_user()` que insere `profiles` + role default `citizen` ao criar utilizador.
-- Trigger que soma pontos ao `profiles.points` sempre que se insere um `deposit`.
+## 4. Marketplace
 
-## 3. RLS (resumo)
+### Esquema (migração)
+```sql
+CREATE TYPE product_category AS ENUM ('recharge','food','stationery','other');
 
-- **profiles**: cada user vê/edita o seu; admin vê todos.
-- **user_roles**: só admin gere; cada user lê o seu.
-- **eco_points**: leitura pública; escrita só admin.
-- **deposits**: cidadão vê os seus; operador insere; admin vê tudo.
-- **reports**: cidadão cria e vê os seus; operador/admin vê tudo e atualiza status.
-- **alerts**: leitura pública (autenticados); operador cria os seus; admin gere tudo.
-- **redemptions**: cidadão vê os seus.
+CREATE TABLE public.products (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  category product_category not null,
+  points_cost int not null check (points_cost > 0),
+  description text,
+  image_url text,
+  active boolean not null default true,
+  created_at timestamptz not null default now()
+);
 
-## 4. Autenticação
+-- Códigos de recarga (um por unidade)
+CREATE TABLE public.recharge_codes (
+  id uuid primary key default gen_random_uuid(),
+  product_id uuid not null references public.products(id) on delete cascade,
+  code text not null,
+  status text not null default 'available' check (status in ('available','reserved','used')),
+  used_by uuid references public.profiles(id),
+  used_at timestamptz,
+  created_at timestamptz not null default now(),
+  unique (product_id, code)
+);
 
-- Página `Login` refeita com **Email + Password** e botão **Google** (`signInWithOAuth({ provider: 'google', redirectTo: window.location.origin })`).
-- Nova página `SignUp` (email + password + dados de perfil).
-- Página `Register` reaproveitada para completar perfil pós-OAuth (nome, telemóvel, morada, sexo).
-- Hook `useAuth()` central com `onAuthStateChange` + `getUser()` e redirect por role.
-- Protecção de rotas: cidadão → `/home`, operador → `/operator`, admin → `/admin`.
+-- Stock físico por eco-ponto (alimentos, cadernos, etc.)
+CREATE TABLE public.product_stock (
+  id uuid primary key default gen_random_uuid(),
+  product_id uuid not null references public.products(id) on delete cascade,
+  eco_point_id uuid not null references public.eco_points(id) on delete cascade,
+  quantity int not null default 0 check (quantity >= 0),
+  unique (product_id, eco_point_id)
+);
+```
++ GRANTs + RLS (admin: full; authenticated: SELECT em `products` activos e `product_stock`; `recharge_codes` só o dono do `used_by` vê o seu).
 
-## 5. Storage
+Estender `redemptions` para guardar `product_id` e (opcional) `recharge_code_id` / `eco_point_id`.
 
-- Bucket **`kubasile-photos`** (público) para fotos de reports e depósitos.
-- Políticas: upload só autenticado; leitura pública.
+### UI
+- **Admin > Marketplace** (`AdminMarketplace.tsx`):
+  - Criar/editar/eliminar produtos.
+  - Categoria `recharge` → formulário para colar N códigos (um por linha) associados ao produto.
+  - Categorias físicas → inputs de quantidade por eco-ponto.
+  - Lista com stock disponível (códigos livres ou soma de quantities).
+- **Cidadão > Loja** (`Marketplace.tsx`, substitui/complementa `EcoPoints` de recompensas):
+  - Grelha por categoria; botão "Trocar" desactivado se pontos insuficientes ou sem stock.
+  - Ao trocar recarga: reservar código disponível → marcar `used`, criar redemption, descontar pontos, mostrar código ao utilizador.
+  - Ao trocar item físico: escolher eco-ponto com stock > 0, decrementar `quantity`, criar redemption com estado "para levantar".
+- Tudo feito via RPC `redeem_product(product_id, eco_point_id?)` `SECURITY DEFINER` para garantir atomicidade (débito de pontos + reserva de código/stock).
 
-## 6. Refactor do frontend
+## 5. FAQ + Contacto (cidadão)
 
-Substituir todas as chamadas a `store.get()` / `mockData` por queries Supabase:
+Nova página `src/pages/Faq.tsx` acessível em `/faq` e ligada no `Profile.tsx` (item "Ajuda").
+- Accordion com ~8 perguntas frequentes (como ganhar pontos, onde trocar, o que é eco-ponto, etc.).
+- Cartão "Contactar suporte" com email `suporte@kubasile.co.mz` (mailto) e formulário simples que abre o cliente de email pré-preenchido.
 
-- `Home`, `History`, `Points`, `Profile` (cidadão) → `deposits`, `reports`, `redemptions`, `profiles`.
-- `EcoPoints`, `PointDetail` → `eco_points`.
-- `Alerts` → `alerts`.
-- `Report` → insert em `reports` + upload de foto.
-- `OperatorHome/Deposit/AlertNew/Alerts/Summary` → CRUD real.
-- `Admin*` (Dashboard, Deposits, Reports, Alerts, EcoPoints, Operators, Analytics, Settings) → queries reais + gestão de roles.
-- Remover `src/lib/mockData.ts` (manter apenas types partilhados num `src/types.ts`).
+## Ordem de implementação
 
-## 7. Entregáveis
+1. Migração BD (colunas + tabelas marketplace).
+2. Sessão persistente + cache profile/role (base para tudo o resto).
+3. Geofencing operador.
+4. Admin — Gestão de utilizadores.
+5. Admin — Marketplace + página loja do cidadão + RPC atómico.
+6. FAQ + contacto.
 
-- `supabase/migrations/0001_init.sql` — script SQL único para você correr no SQL Editor.
-- Código totalmente refatorado, zero mocks, zero `localStorage` para dados.
-- Instruções curtas de setup (activar Google provider, adicionar redirect URL, correr SQL, criar 1º admin via SQL snippet).
-
-## Passo seguinte
-
-Cola aqui a `SUPABASE_URL` e a `SUPABASE_PUBLISHABLE_KEY` do teu projeto. Assim que as tiver, executo a migração completa numa só passagem.
+Confirma para eu avançar (ou diz-me se queres cortar/reordenar algum bloco — por exemplo deixar Marketplace para uma fase seguinte).

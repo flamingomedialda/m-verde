@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { createDeposit } from "@/lib/api";
+import { assertOperatorInRadius } from "@/lib/geo";
 import {
   pointsForMaterial, formatWeight, MATERIAL_POINTS_PER_100G, type Profile,
 } from "@/lib/types";
@@ -59,6 +60,16 @@ export default function OperatorDeposit() {
     if (!citizen || !op) return;
     setBusy(true);
     try {
+      // Geofencing: 100m do eco-ponto associado
+      const check = await assertOperatorInRadius();
+      if (!check.ok) {
+        const msg = check.error
+          ? check.error
+          : `Fora do raio permitido: ${Math.round(check.distance)} m do Eco Ponto ${check.ep?.name ?? ""} (máx. 100 m).`;
+        toast.error(msg);
+        setBusy(false);
+        return;
+      }
       await createDeposit({
         citizen_id: citizen.id,
         operator_id: op.id,

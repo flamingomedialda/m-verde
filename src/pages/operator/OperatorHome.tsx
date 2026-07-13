@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { MobileShell } from "@/components/MobileShell";
-import { PackagePlus, AlertTriangle, BarChart3, LogOut, Recycle, Bell } from "lucide-react";
+import { PackagePlus, AlertTriangle, BarChart3, LogOut, Recycle, Bell, MapPin, CheckCircle2, XCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { formatWeight } from "@/lib/types";
+import { assertOperatorInRadius, getOperatorEcoPoint } from "@/lib/geo";
+import { toast } from "sonner";
 
 export default function OperatorHome() {
   const nav = useNavigate();
@@ -42,6 +44,9 @@ export default function OperatorHome() {
           <LogOut className="h-5 w-5" />
         </button>
       </header>
+
+      <EcoPointBadge />
+
 
       <section className="px-5 mt-4 grid grid-cols-3 gap-2">
         <Kpi label="Depósitos hoje" value={String(stats.deposits)} icon={Recycle} tone="green" />
@@ -94,6 +99,40 @@ function Kpi({ label, value, icon: Icon, tone }: { label: string; value: string;
       <div className={`h-8 w-8 rounded-xl ${map[tone]} flex items-center justify-center mb-2`}><Icon className="h-4 w-4" /></div>
       <div className="text-[10px] text-muted-foreground leading-tight">{label}</div>
       <div className="text-lg font-extrabold leading-tight">{value}</div>
+    </div>
+  );
+}
+
+function EcoPointBadge() {
+  const [state, setState] = useState<{ status: "idle" | "ok" | "far" | "err"; msg?: string; distance?: number }>({ status: "idle" });
+  const ep = getOperatorEcoPoint();
+
+  const check = async () => {
+    const r = await assertOperatorInRadius();
+    if (!r.ep) return toast.error("Sem Eco Ponto associado");
+    if (r.error) return setState({ status: "err", msg: r.error });
+    setState({ status: r.ok ? "ok" : "far", distance: r.distance });
+  };
+
+  if (!ep) {
+    return (
+      <div className="mx-5 mt-4 bg-danger/10 text-danger rounded-2xl p-3 text-sm flex items-center gap-2">
+        <XCircle className="h-4 w-4" /> Sem Eco Ponto associado. Contacte o admin.
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-5 mt-4 bg-card shadow-card rounded-2xl p-3 flex items-center gap-3">
+      <div className="h-10 w-10 rounded-xl bg-accent text-primary flex items-center justify-center"><MapPin className="h-5 w-5" /></div>
+      <div className="flex-1 min-w-0">
+        <div className="text-[10px] text-muted-foreground uppercase">Eco Ponto associado</div>
+        <div className="font-semibold truncate">{ep.name}</div>
+        {state.status === "ok" && <div className="text-[11px] text-success flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Dentro do raio ({Math.round(state.distance!)} m)</div>}
+        {state.status === "far" && <div className="text-[11px] text-danger">A {Math.round(state.distance!)} m — fora do raio (máx. 100 m)</div>}
+        {state.status === "err" && <div className="text-[11px] text-danger">{state.msg}</div>}
+      </div>
+      <button onClick={check} className="text-xs font-semibold text-primary">Verificar</button>
     </div>
   );
 }

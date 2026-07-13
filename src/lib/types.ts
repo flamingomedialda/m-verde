@@ -13,9 +13,45 @@ export interface Profile {
   total_g: number;
   reports_count: number;
   eco_point_id: string | null;
+  blocked?: boolean;
   created_at: string;
   role?: Role;
 }
+
+// ----------------- Marketplace -----------------
+export type ProductCategory = "recharge" | "food" | "stationery" | "other";
+export interface Product {
+  id: string;
+  name: string;
+  category: ProductCategory;
+  points_cost: number;
+  description: string | null;
+  image_url: string | null;
+  active: boolean;
+  created_at: string;
+}
+export interface RechargeCode {
+  id: string;
+  product_id: string;
+  code: string;
+  status: "available" | "reserved" | "used";
+  used_by: string | null;
+  used_at: string | null;
+  created_at: string;
+}
+export interface ProductStock {
+  id: string;
+  product_id: string;
+  eco_point_id: string;
+  quantity: number;
+}
+
+export const PRODUCT_CATEGORY_LABEL: Record<ProductCategory, string> = {
+  recharge: "Recarga",
+  food: "Alimento",
+  stationery: "Material escolar",
+  other: "Outro",
+};
 
 export interface EcoPoint {
   id: string;

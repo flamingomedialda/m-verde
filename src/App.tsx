@@ -24,6 +24,10 @@ import AdminReports from "@/pages/admin/AdminReports";
 import AdminAlerts from "@/pages/admin/AdminAlerts";
 import AdminAnalytics from "@/pages/admin/AdminAnalytics";
 import AdminSettings from "@/pages/admin/AdminSettings";
+import AdminUsers from "@/pages/admin/AdminUsers";
+import AdminMarketplace from "@/pages/admin/AdminMarketplace";
+import Marketplace from "@/pages/Marketplace";
+import Faq from "@/pages/Faq";
 import NotFound from "@/pages/NotFound";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
@@ -43,6 +47,8 @@ export default function App() {
       <Route path="/alerts" element={<ProtectedRoute><Alerts /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       <Route path="/edit-profile" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />
+      <Route path="/marketplace" element={<ProtectedRoute allow={["citizen"]}><Marketplace /></ProtectedRoute>} />
+      <Route path="/faq" element={<ProtectedRoute><Faq /></ProtectedRoute>} />
 
       <Route path="/operator" element={<ProtectedRoute allow={["operator"]}><OperatorHome /></ProtectedRoute>} />
       <Route path="/operator/deposit" element={<ProtectedRoute allow={["operator"]}><OperatorDeposit /></ProtectedRoute>} />
@@ -58,6 +64,8 @@ export default function App() {
       <Route path="/admin/alerts" element={<ProtectedRoute allow={["admin"]}><AdminAlerts /></ProtectedRoute>} />
       <Route path="/admin/analytics" element={<ProtectedRoute allow={["admin"]}><AdminAnalytics /></ProtectedRoute>} />
       <Route path="/admin/settings" element={<ProtectedRoute allow={["admin"]}><AdminSettings /></ProtectedRoute>} />
+      <Route path="/admin/users" element={<ProtectedRoute allow={["admin"]}><AdminUsers /></ProtectedRoute>} />
+      <Route path="/admin/marketplace" element={<ProtectedRoute allow={["admin"]}><AdminMarketplace /></ProtectedRoute>} />
 
       <Route path="/index" element={<Navigate to="/" replace />} />
       <Route path="*" element={<NotFound />} />
