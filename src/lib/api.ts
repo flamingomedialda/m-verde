@@ -1,5 +1,8 @@
 import { supabase, PHOTOS_BUCKET } from "@/integrations/supabase/client";
-import type { AlertItem, Deposit, EcoPoint, Profile, Redemption, Report, Role } from "@/lib/types";
+import type {
+  AlertItem, Deposit, EcoPoint, Product, ProductCategory, ProductStock,
+  Profile, RechargeCode, Redemption, Report, Role,
+} from "@/lib/types";
 import { pointsForGrams } from "@/lib/types";
 
 // -------------------- Profiles --------------------
