@@ -38,10 +38,14 @@ export default function Profile() {
             <div className="h-10 w-10 rounded-xl bg-muted flex items-center justify-center"><Settings className="h-5 w-5 text-muted-foreground" /></div>
             <span className="font-semibold">Editar perfil</span>
           </button>
-          <div className="flex items-center gap-3 px-4 py-4">
+          <button onClick={() => nav("/marketplace")} className="w-full flex items-center gap-3 px-4 py-4 text-left tap-scale">
+            <div className="h-10 w-10 rounded-xl bg-accent text-primary flex items-center justify-center"><Recycle className="h-5 w-5" /></div>
+            <span className="font-semibold">Loja de Pontos</span>
+          </button>
+          <button onClick={() => nav("/faq")} className="w-full flex items-center gap-3 px-4 py-4 text-left tap-scale">
             <div className="h-10 w-10 rounded-xl bg-muted flex items-center justify-center"><HelpCircle className="h-5 w-5 text-muted-foreground" /></div>
             <span className="font-semibold">Ajuda & Suporte</span>
-          </div>
+          </button>
           <button onClick={async () => { await signOut(); nav("/"); }} className="w-full flex items-center gap-3 px-4 py-4 text-left tap-scale">
             <div className="h-10 w-10 rounded-xl bg-danger/10 text-danger flex items-center justify-center"><LogOut className="h-5 w-5" /></div>
             <span className="font-semibold text-danger">Terminar sessão</span>

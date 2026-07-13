@@ -1,14 +1,16 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, MapPin, Users, PackageCheck, FileWarning, Bell, BarChart3, Settings, Leaf, LogOut } from "lucide-react";
+import { LayoutDashboard, MapPin, Users, PackageCheck, FileWarning, Bell, BarChart3, Settings, Leaf, LogOut, UserCog, ShoppingBag } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import logo from "../../public/mverde_logo2.svg"
 const items = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
+  { to: "/admin/users", label: "Utilizadores", icon: UserCog },
   { to: "/admin/eco-points", label: "Eco Pontos", icon: MapPin },
   { to: "/admin/operators", label: "Operadores", icon: Users },
   { to: "/admin/deposits", label: "Depósitos", icon: PackageCheck },
   { to: "/admin/reports", label: "Reportes", icon: FileWarning },
   { to: "/admin/alerts", label: "Alertas", icon: Bell },
+  { to: "/admin/marketplace", label: "Marketplace", icon: ShoppingBag },
   { to: "/admin/analytics", label: "Analytics", icon: BarChart3 },
   { to: "/admin/settings", label: "Definições", icon: Settings },
 ];
