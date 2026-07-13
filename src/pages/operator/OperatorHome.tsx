@@ -11,13 +11,15 @@ export default function OperatorHome() {
   const { user, profile, signOut } = useAuth();
   const [stats, setStats] = useState({ deposits: 0, g: 0, alerts: 0 });
 
+  const userId = user?.id;
+
   useEffect(() => {
-    if (!user) return;
+    if (!userId) return;
     const startOfDay = new Date(); startOfDay.setHours(0,0,0,0);
     (async () => {
       const [{ data: deps }, { count: alertsCount }] = await Promise.all([
-        supabase.from("deposits").select("weight_g").eq("operator_id", user.id).gte("date", startOfDay.toISOString()),
-        supabase.from("alerts").select("id", { count: "exact", head: true }).eq("operator_id", user.id),
+        supabase.from("deposits").select("weight_g").eq("operator_id", userId).gte("date", startOfDay.toISOString()),
+        supabase.from("alerts").select("id", { count: "exact", head: true }).eq("operator_id", userId),
       ]);
       setStats({
         deposits: (deps ?? []).length,
@@ -25,7 +27,7 @@ export default function OperatorHome() {
         alerts: alertsCount ?? 0,
       });
     })();
-  }, [user]);
+  }, [userId]);
 
   if (!profile) return null;
 

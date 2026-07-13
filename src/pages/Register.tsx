@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { upsertProfile, setUserRole } from "@/lib/api";
 import type { Gender } from "@/lib/types";
+import logo from "../../public/mverde_logo1.svg"
 
 export default function Register() {
   const nav = useNavigate();
@@ -64,7 +65,7 @@ export default function Register() {
       // 3. Refresh auth context so the new role is picked up
       await refresh();
 
-      toast.success("Bem-vindo ao KUBASILE! 🌿");
+      toast.success("Bem-vindo ao m-verde! 🌿");
       nav("/home", { replace: true });
     } catch (err) {
       toast.error((err as Error).message);
@@ -176,7 +177,7 @@ export default function Register() {
             size="lg"
             className="w-full h-14 rounded-2xl text-base font-semibold shadow-soft"
           >
-            {saving ? "A criar conta…" : "Entrar no KUBASILE"}
+            {saving ? "A criar conta…" : "Entrar"}
           </Button>
         </form>
       </div>

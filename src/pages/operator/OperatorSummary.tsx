@@ -15,19 +15,21 @@ export default function OperatorSummary() {
   const { user } = useAuth();
   const [deposits, setDeposits] = useState<DepositWithCitizen[]>([]);
 
+  const userId = user?.id;
+
   useEffect(() => {
-    if (!user) return;
+    if (!userId) return;
     const startOfDay = new Date(); startOfDay.setHours(0,0,0,0);
     (async () => {
       const { data } = await supabase
         .from("deposits")
         .select("*, citizen:profiles!deposits_citizen_id_fkey(id,name)")
-        .eq("operator_id", user.id)
+        .eq("operator_id", userId)
         .gte("date", startOfDay.toISOString())
         .order("date", { ascending: false });
       setDeposits((data ?? []) as DepositWithCitizen[]);
     })();
-  }, [user]);
+  }, [userId]);
 
   const totalG = deposits.reduce((a, d) => a + d.weight_g, 0);
   const totalPts = deposits.reduce((a, d) => a + d.points, 0);

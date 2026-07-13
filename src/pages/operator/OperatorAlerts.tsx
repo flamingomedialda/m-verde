@@ -20,13 +20,15 @@ export default function OperatorAlerts() {
   const { user } = useAuth();
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
 
+  const userId = user?.id;
+
   const refresh = async () => {
-    if (!user) return;
-    const { data } = await supabase.from("alerts").select("*").eq("operator_id", user.id).order("date", { ascending: false });
+    if (!userId) return;
+    const { data } = await supabase.from("alerts").select("*").eq("operator_id", userId).order("date", { ascending: false });
     setAlerts((data ?? []) as AlertItem[]);
   };
 
-  useEffect(() => { refresh(); }, [user]);
+  useEffect(() => { refresh(); }, [userId]);
 
   const remove = async (id: string) => {
     try { await deleteAlert(id); await refresh(); toast.success("Alerta removido"); }

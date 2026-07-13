@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { LayoutDashboard, MapPin, Users, PackageCheck, FileWarning, Bell, BarChart3, Settings, Leaf, LogOut } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-
+import logo from "../../public/mverde_logo2.svg"
 const items = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { to: "/admin/eco-points", label: "Eco Pontos", icon: MapPin },
@@ -21,11 +21,9 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen flex bg-muted/30">
       <aside className="hidden md:flex w-64 flex-col bg-sidebar border-r border-sidebar-border">
         <div className="px-6 py-6 flex items-center gap-2 border-b border-sidebar-border">
-          <div className="h-9 w-9 rounded-xl gradient-green flex items-center justify-center shadow-soft">
-            <Leaf className="h-5 w-5 text-white" />
-          </div>
+    
           <div>
-            <div className="font-bold text-sidebar-foreground">KUBASILE</div>
+            <img src={logo} alt="Logo" className="h-14" />
             <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Admin Console</div>
           </div>
         </div>
@@ -61,7 +59,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           <div className="h-8 w-8 rounded-xl gradient-green flex items-center justify-center">
             <Leaf className="h-4 w-4 text-white" />
           </div>
-          <span className="font-bold">KUBASILE Admin</span>
+          <span className="font-bold">M-VERDE Admin</span>
         </div>
         {children}
       </main>

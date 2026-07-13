@@ -12,13 +12,15 @@ export default function History() {
   const { user } = useAuth();
   const [items, setItems] = useState<Item[]>([]);
 
+  const userId = user?.id;
+
   useEffect(() => {
-    if (!user) return;
+    if (!userId) return;
     (async () => {
       const [deps, reps, reds] = await Promise.all([
-        listDepositsForCitizen(user.id),
-        listReportsForCitizen(user.id),
-        listRedemptionsForCitizen(user.id),
+        listDepositsForCitizen(userId),
+        listReportsForCitizen(userId),
+        listRedemptionsForCitizen(userId),
       ]);
       const list: Item[] = [];
       deps.forEach((d) => list.push({ id: d.id, date: d.date, title: `+${d.points} pontos`, subtitle: `Depósito de ${formatWeight(d.weight_g)} · ${d.materials.join(", ")}`, kind: "deposit" }));
@@ -27,7 +29,7 @@ export default function History() {
       list.sort((a, b) => +new Date(b.date) - +new Date(a.date));
       setItems(list);
     })();
-  }, [user]);
+  }, [userId]);
 
   const grouped = useMemo(() => {
     const g: Record<string, Item[]> = {};

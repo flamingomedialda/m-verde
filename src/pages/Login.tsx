@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import logo from "../../public/mverde_logo1.svg"
 
 function GoogleIcon({ className = "h-5 w-5" }: { className?: string }) {
   return (
@@ -63,27 +64,16 @@ export default function Login() {
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-10">
         <div className="w-full max-w-sm">
           <div className="flex flex-col items-center text-center mb-8">
-            <div className="h-20 w-20 rounded-3xl gradient-green flex items-center justify-center shadow-soft mb-5">
-              <Leaf className="h-10 w-10 text-white" />
-            </div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-foreground">KUBASILE</h1>
-            <p className="text-sm text-muted-foreground mt-2 max-w-xs">
+            <img src={logo} alt="logo m-verde" className=" h-18" />
+            {/* <p className="text-sm text-muted-foreground mt-2 max-w-xs">
               Plataforma comunitária de clima e reciclagem — Moçambique
-            </p>
+            </p> */}
           </div>
 
           <form onSubmit={signIn} className="bg-card rounded-3xl p-6 shadow-card space-y-4">
             <h2 className="text-base font-semibold text-center">Iniciar sessão</h2>
 
-            <Button type="button" variant="outline" size="lg" disabled={busy} onClick={google}
-              className="w-full h-12 rounded-2xl text-sm font-semibold border-2 bg-white text-foreground hover:bg-white/90 flex items-center gap-3">
-              <GoogleIcon /> Continuar com Google
-            </Button>
-
-            <div className="flex items-center gap-3 text-[11px] uppercase text-muted-foreground">
-              <div className="flex-1 h-px bg-border" /> ou <div className="flex-1 h-px bg-border" />
-            </div>
-
+      
             <div>
               <Label className="flex items-center gap-1.5"><Mail className="h-4 w-4" /> Email</Label>
               <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
@@ -99,6 +89,17 @@ export default function Login() {
               {busy ? "A entrar…" : "Entrar"}
             </Button>
 
+
+            <div className="flex items-center gap-3 text-[11px] uppercase text-muted-foreground">
+              <div className="flex-1 h-px bg-border" /> ou <div className="flex-1 h-px bg-border" />
+            </div>
+
+                  <Button type="button" variant="outline" size="lg" disabled={busy} onClick={google}
+              className="w-full h-12 rounded-2xl text-sm font-semibold border-2 bg-white text-foreground hover:bg-white/90 flex items-center gap-3">
+              <GoogleIcon /> Continuar com Google
+            </Button>
+
+
             <p className="text-xs text-center text-muted-foreground pt-1">
               Ainda sem conta?{" "}
               <Link to="/signup" className="text-primary font-semibold">Criar conta</Link>
@@ -106,7 +107,7 @@ export default function Login() {
           </form>
         </div>
       </div>
-      <div className="text-center text-xs text-muted-foreground pb-6">© KUBASILE — Comunidade & Clima</div>
+      <div className="text-center text-xs text-muted-foreground pb-6">© Desenvolvido por Flamingo Media</div>
     </div>
   );
 }

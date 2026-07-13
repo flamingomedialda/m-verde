@@ -12,7 +12,7 @@ export default function AdminSettings() {
         <h1 className="text-3xl font-bold">Definições</h1>
         <p className="text-sm text-muted-foreground mt-1 mb-6">Preferências do sistema</p>
         <div className="bg-card rounded-3xl p-6 shadow-card space-y-4">
-          <Row label="Nome do sistema" value="KUBASILE" />
+          <Row label="Nome do sistema" value="m-verde" />
           <Row label="País" value="Moçambique" />
           <Row label="Idioma" value="Português" />
           <Row label="Moeda de recompensa" value="Pontos" />

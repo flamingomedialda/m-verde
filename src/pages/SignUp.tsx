@@ -6,17 +6,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import logo from "../../public/mverde_logo1.svg"
 
 export default function SignUp() {
   const nav = useNavigate();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmePassword,setConfirmePassword]= useState("")
   const [loading, setLoading] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password.length < 6) return toast.error("Palavra-passe muito curta");
+    if(password!==confirmePassword) return toast.error("Palavra-passe diferentes");
+
     setLoading(true);
     const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
@@ -40,10 +44,13 @@ export default function SignUp() {
       </Link>
       <div className="flex-1 flex flex-col justify-center max-w-md mx-auto w-full py-6">
         <div className="text-center mb-6">
-          <div className="h-16 w-16 mx-auto rounded-2xl gradient-green flex items-center justify-center shadow-soft mb-3">
-            <Leaf className="h-8 w-8 text-white" />
+          <div className="flex flex-col items-center text-center mb-8">
+            <img src={logo} alt="logo m-verde" className=" h-18" />
+            {/* <p className="text-sm text-muted-foreground mt-2 max-w-xs">
+              Plataforma comunitária de clima e reciclagem — Moçambique
+            </p> */}
           </div>
-          <h1 className="text-2xl font-bold">Criar conta KUBASILE</h1>
+          <h1 className="text-2xl font-bold">Criar conta</h1>
           <p className="text-sm text-muted-foreground mt-1">Comece a reciclar e a ganhar pontos</p>
         </div>
 
@@ -60,6 +67,12 @@ export default function SignUp() {
             <Label className="flex items-center gap-1.5"><Lock className="h-4 w-4" /> Palavra-passe</Label>
             <Input type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mínimo 6 caracteres" className="mt-1.5 h-12 rounded-xl" />
           </div>
+
+          <div>
+            <Label className="flex items-center gap-1.5"><Lock className="h-4 w-4" /> Confirmar Palavra-passe</Label>
+            <Input type="password" required minLength={6} value={confirmePassword} onChange={(e) => setConfirmePassword(e.target.value)} placeholder="Mínimo 6 caracteres" className="mt-1.5 h-12 rounded-xl" />
+          </div>
+
           <Button type="submit" disabled={loading} size="lg" className="w-full h-12 rounded-2xl font-semibold shadow-soft">
             {loading ? "A criar…" : "Criar conta"}
           </Button>

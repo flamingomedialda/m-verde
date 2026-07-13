@@ -40,7 +40,7 @@ export default function AdminDashboard() {
         <div className="flex items-end justify-between flex-wrap gap-3 mb-6">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-            <p className="text-sm text-muted-foreground mt-1">Vista geral do sistema KUBASILE</p>
+            <p className="text-sm text-muted-foreground mt-1">Vista geral do sistema</p>
           </div>
           <div className="text-xs text-muted-foreground">{new Date().toLocaleDateString("pt-PT", { dateStyle: "full" })}</div>
         </div>

@@ -110,7 +110,7 @@ export const REWARDS: Reward[] = [
   { id: "r1", title: "Material Escolar", description: "Kit com cadernos e canetas", points: 80, icon: "📚", category: "Educação" },
   { id: "r2", title: "Recarga Móvel 50 MT", description: "Crédito mCel/Vodacom/Movitel", points: 50, icon: "📱", category: "Comunicação" },
   { id: "r3", title: "Recarga Móvel 100 MT", description: "Crédito mCel/Vodacom/Movitel", points: 100, icon: "📱", category: "Comunicação" },
-  { id: "r4", title: "Produto Reciclado", description: "Saco ecológico KUBASILE", points: 40, icon: "🛍️", category: "Produto" },
+  { id: "r4", title: "Produto Reciclado", description: "Saco ecológico m-verde", points: 40, icon: "🛍️", category: "Produto" },
   { id: "r5", title: "Cesta Básica", description: "Cesta alimentar comunitária", points: 200, icon: "🧺", category: "Comunidade" },
   { id: "r6", title: "Vale Saúde", description: "Consulta no posto comunitário", points: 150, icon: "❤️", category: "Saúde" },
 ];

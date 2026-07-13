@@ -18,7 +18,7 @@ const ICONS: Record<string, string> = {
 
 export default function OperatorDeposit() {
   const nav = useNavigate();
-  const { user: op } = useAuth();
+  const { user: op, profile: opProfile } = useAuth();
   const [step, setStep] = useState(1);
   const [phone, setPhone] = useState("+258");
   const [citizen, setCitizen] = useState<Profile | null>(null);
@@ -60,8 +60,12 @@ export default function OperatorDeposit() {
     setBusy(true);
     try {
       await createDeposit({
-        citizen_id: citizen.id, operator_id: op.id,
-        materials, weight_g: totalWeight, points: totalPoints,
+        citizen_id: citizen.id,
+        operator_id: op.id,
+        eco_point_id: opProfile?.eco_point_id || null,
+        materials,
+        weight_g: totalWeight,
+        points: totalPoints,
       });
       setDone(true);
     } catch (e) { toast.error((e as Error).message); }
@@ -84,7 +88,7 @@ export default function OperatorDeposit() {
               <MessageSquare className="h-3.5 w-3.5" /> Confirmação
             </div>
             <pre className="mt-2 text-xs whitespace-pre-wrap text-foreground/90 font-sans bg-muted rounded-2xl p-3">
-{`KUBASILE:
+{`M-verde:
 Depósito registado.
 
 Peso total: ${formatWeight(totalWeight)}
