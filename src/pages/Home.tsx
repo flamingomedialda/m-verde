@@ -51,7 +51,7 @@ export default function Home() {
 
       <section className="px-5 mt-6 space-y-3">
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Ações principais</h2>
-        <ActionCard to="/points" title="Usar pontos" desc="Troque por material escolar, recargas e mais" icon={Gift} variant="green" />
+        <ActionCard to="/marketplace" title="Usar pontos" desc="Troque por material escolar, recargas e mais" icon={Gift} variant="green" />
         <ActionCard to="/eco-points" title="Eco Pontos próximos" desc="Encontre locais de reciclagem perto de si" icon={MapPin} variant="blue" />
         <ActionCard to="/report" title="Reportar problema" desc="Cheias, lixo, mosquitos e mais" icon={AlertTriangle} variant="red" />
       </section>
