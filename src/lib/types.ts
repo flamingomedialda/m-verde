@@ -53,6 +53,16 @@ export const PRODUCT_CATEGORY_LABEL: Record<ProductCategory, string> = {
   other: "Outro",
 };
 
+export interface PointTransfer {
+  id: string;
+  sender_id: string;
+  receiver_id: string;
+  points: number;
+  sender_phone: string | null;
+  receiver_phone: string | null;
+  date: string;
+}
+
 export interface EcoPoint {
   id: string;
   name: string;

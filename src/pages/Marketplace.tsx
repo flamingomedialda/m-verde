@@ -53,12 +53,15 @@ export default function Marketplace() {
           const affordable = balance >= p.points_cost;
           return (
             <button key={p.id} disabled={!affordable} onClick={() => setSelected(p)}
-              className={`text-left bg-card rounded-3xl p-4 shadow-card tap-scale ${!affordable ? "opacity-60" : ""}`}>
-              <div className="h-10 w-10 rounded-xl bg-accent text-primary flex items-center justify-center mb-2">
-                {p.category === "recharge" ? <Ticket className="h-5 w-5" /> : <Package className="h-5 w-5" />}
+              className={`text-left bg-card rounded-3xl p-3 shadow-card tap-scale ${!affordable ? "opacity-60" : ""}`}>
+              <div className="aspect-square w-full rounded-2xl bg-accent text-primary flex items-center justify-center mb-2 overflow-hidden">
+                {p.image_url
+                  ? <img src={p.image_url} alt={p.name} loading="lazy" className="h-full w-full object-cover" />
+                  : p.category === "recharge" ? <Ticket className="h-7 w-7" /> : <Package className="h-7 w-7" />}
               </div>
               <div className="font-semibold text-sm leading-tight">{p.name}</div>
               <div className="text-[10px] text-muted-foreground">{PRODUCT_CATEGORY_LABEL[p.category]}</div>
+              {p.description && <div className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">{p.description}</div>}
               <div className="mt-2 font-bold text-primary">{p.points_cost} pts</div>
             </button>
           );
@@ -150,6 +153,10 @@ function RedeemDialog({ product, ecoPoints, balance, phone, onClose, onRedeemed 
       <DialogContent className="max-w-sm">
         <DialogHeader><DialogTitle>{product.name}</DialogTitle></DialogHeader>
         <div className="space-y-3 text-sm">
+          {product.image_url && (
+            <img src={product.image_url} alt={product.name} className="w-full h-40 object-cover rounded-2xl" />
+          )}
+          <div className="text-xs text-muted-foreground">{PRODUCT_CATEGORY_LABEL[product.category]}</div>
           {product.description && <p className="text-muted-foreground">{product.description}</p>}
           <div className="bg-accent rounded-2xl p-3 flex items-center justify-between">
             <span className="text-xs text-muted-foreground">Custo</span>

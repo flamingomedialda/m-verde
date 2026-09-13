@@ -27,6 +27,7 @@ import AdminSettings from "@/pages/admin/AdminSettings";
 import AdminUsers from "@/pages/admin/AdminUsers";
 import AdminMarketplace from "@/pages/admin/AdminMarketplace";
 import Marketplace from "@/pages/Marketplace";
+import Transfer from "@/pages/Transfer";
 import Faq from "@/pages/Faq";
 import NotFound from "@/pages/NotFound";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -48,6 +49,7 @@ export default function App() {
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       <Route path="/edit-profile" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />
       <Route path="/marketplace" element={<ProtectedRoute allow={["citizen"]}><Marketplace /></ProtectedRoute>} />
+      <Route path="/transfer" element={<ProtectedRoute allow={["citizen"]}><Transfer /></ProtectedRoute>} />
       <Route path="/faq" element={<ProtectedRoute><Faq /></ProtectedRoute>} />
 
       <Route path="/operator" element={<ProtectedRoute allow={["operator"]}><OperatorHome /></ProtectedRoute>} />

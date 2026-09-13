@@ -6,12 +6,12 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Trash2, Package, Ticket, Boxes } from "lucide-react";
+import { Plus, Trash2, Package, Ticket, Boxes, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import {
   listProducts, createProduct, updateProduct, deleteProduct,
   listCodesForProduct, addCodes, deleteCode, countAvailableCodes,
-  listStockForProduct, upsertStock, listEcoPoints,
+  listStockForProduct, upsertStock, listEcoPoints, uploadPhoto,
 } from "@/lib/api";
 import type { EcoPoint, Product, ProductCategory, ProductStock, RechargeCode } from "@/lib/types";
 import { PRODUCT_CATEGORY_LABEL } from "@/lib/types";
@@ -53,8 +53,10 @@ export default function AdminMarketplace() {
             <button key={p.id} onClick={() => setSelected(p)}
               className="text-left bg-card rounded-3xl p-5 shadow-card hover:shadow-lg transition">
               <div className="flex items-start gap-3">
-                <div className="h-12 w-12 rounded-2xl bg-accent text-primary flex items-center justify-center">
-                  <Package className="h-6 w-6" />
+                <div className="h-12 w-12 rounded-2xl bg-accent text-primary flex items-center justify-center overflow-hidden shrink-0">
+                  {p.image_url
+                    ? <img src={p.image_url} alt={p.name} loading="lazy" className="h-full w-full object-cover" />
+                    : <Package className="h-6 w-6" />}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -89,13 +91,25 @@ function ProductForm({ open, setOpen, onSaved, initial }:
   const [cost, setCost] = useState<number>(initial?.points_cost ?? 50);
   const [description, setDescription] = useState(initial?.description ?? "");
   const [active, setActive] = useState<boolean>(initial?.active ?? true);
+  const [imageUrl, setImageUrl] = useState<string | null>(initial?.image_url ?? null);
+  const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (open && !initial) {
-      setName(""); setCategory("recharge"); setCost(50); setDescription(""); setActive(true);
+      setName(""); setCategory("recharge"); setCost(50); setDescription(""); setActive(true); setImageUrl(null);
     }
   }, [open, initial]);
+
+  const pickImage = async (file?: File | null) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return toast.error("Escolha um ficheiro de imagem");
+    if (file.size > 5 * 1024 * 1024) return toast.error("Imagem demasiado grande (máx. 5 MB)");
+    setUploading(true);
+    try { setImageUrl(await uploadPhoto(file, "products")); toast.success("Foto carregada"); }
+    catch (e) { toast.error((e as Error).message); }
+    finally { setUploading(false); }
+  };
 
   const save = async () => {
     if (!name.trim()) return toast.error("Nome obrigatório");
@@ -103,10 +117,10 @@ function ProductForm({ open, setOpen, onSaved, initial }:
     setBusy(true);
     try {
       if (initial) {
-        await updateProduct(initial.id, { name: name.trim(), category, points_cost: cost, description: description.trim() || null, active });
+        await updateProduct(initial.id, { name: name.trim(), category, points_cost: cost, description: description.trim() || null, image_url: imageUrl, active });
         toast.success("Produto actualizado");
       } else {
-        await createProduct({ name: name.trim(), category, points_cost: cost, description: description.trim() || null, image_url: null, active });
+        await createProduct({ name: name.trim(), category, points_cost: cost, description: description.trim() || null, image_url: imageUrl, active });
         toast.success("Produto criado");
       }
       setOpen(false); onSaved();
@@ -144,6 +158,23 @@ function ProductForm({ open, setOpen, onSaved, initial }:
           <div>
             <Label>Descrição</Label>
             <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Detalhes visíveis ao cidadão" />
+          </div>
+          <div>
+            <Label>Foto do produto</Label>
+            <div className="mt-1 flex items-center gap-3">
+              <div className="h-16 w-16 rounded-2xl bg-muted overflow-hidden flex items-center justify-center shrink-0">
+                {imageUrl
+                  ? <img src={imageUrl} alt={name || "Produto"} className="h-full w-full object-cover" />
+                  : <ImageIcon className="h-6 w-6 text-muted-foreground" />}
+              </div>
+              <div className="flex-1">
+                <Input type="file" accept="image/*" onChange={(e) => pickImage(e.target.files?.[0])} disabled={uploading} />
+                {uploading && <div className="text-xs text-muted-foreground mt-1">A carregar foto…</div>}
+                {imageUrl && !uploading && (
+                  <button type="button" className="text-xs text-danger mt-1" onClick={() => setImageUrl(null)}>Remover foto</button>
+                )}
+              </div>
+            </div>
           </div>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} /> Activo (visível na loja)
