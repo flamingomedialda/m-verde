@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import {
   listProducts, createProduct, updateProduct, deleteProduct,
   listCodesForProduct, addCodes, deleteCode, countAvailableCodes,
-  listStockForProduct, upsertStock, listEcoPoints,
+  listStockForProduct, upsertStock, listEcoPoints, uploadPhoto,
 } from "@/lib/api";
 import type { EcoPoint, Product, ProductCategory, ProductStock, RechargeCode } from "@/lib/types";
 import { PRODUCT_CATEGORY_LABEL } from "@/lib/types";
@@ -89,13 +89,25 @@ function ProductForm({ open, setOpen, onSaved, initial }:
   const [cost, setCost] = useState<number>(initial?.points_cost ?? 50);
   const [description, setDescription] = useState(initial?.description ?? "");
   const [active, setActive] = useState<boolean>(initial?.active ?? true);
+  const [imageUrl, setImageUrl] = useState<string | null>(initial?.image_url ?? null);
+  const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (open && !initial) {
-      setName(""); setCategory("recharge"); setCost(50); setDescription(""); setActive(true);
+      setName(""); setCategory("recharge"); setCost(50); setDescription(""); setActive(true); setImageUrl(null);
     }
   }, [open, initial]);
+
+  const pickImage = async (file?: File | null) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return toast.error("Escolha um ficheiro de imagem");
+    if (file.size > 5 * 1024 * 1024) return toast.error("Imagem demasiado grande (máx. 5 MB)");
+    setUploading(true);
+    try { setImageUrl(await uploadPhoto(file, "products")); toast.success("Foto carregada"); }
+    catch (e) { toast.error((e as Error).message); }
+    finally { setUploading(false); }
+  };
 
   const save = async () => {
     if (!name.trim()) return toast.error("Nome obrigatório");
@@ -103,10 +115,10 @@ function ProductForm({ open, setOpen, onSaved, initial }:
     setBusy(true);
     try {
       if (initial) {
-        await updateProduct(initial.id, { name: name.trim(), category, points_cost: cost, description: description.trim() || null, active });
+        await updateProduct(initial.id, { name: name.trim(), category, points_cost: cost, description: description.trim() || null, image_url: imageUrl, active });
         toast.success("Produto actualizado");
       } else {
-        await createProduct({ name: name.trim(), category, points_cost: cost, description: description.trim() || null, image_url: null, active });
+        await createProduct({ name: name.trim(), category, points_cost: cost, description: description.trim() || null, image_url: imageUrl, active });
         toast.success("Produto criado");
       }
       setOpen(false); onSaved();
