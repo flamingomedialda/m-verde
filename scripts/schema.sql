@@ -404,3 +404,87 @@ create policy "photos auth upload" on storage.objects for insert
 drop policy if exists "photos auth update" on storage.objects;
 create policy "photos auth update" on storage.objects for update
   using (bucket_id = 'kubasile-photos' and auth.role() = 'authenticated');
+
+-- ==================== TRANSFERÊNCIA DE PONTOS ========================
+
+create table if not exists public.point_transfers (
+  id uuid primary key default gen_random_uuid(),
+  sender_id uuid not null references public.profiles(id) on delete cascade,
+  receiver_id uuid not null references public.profiles(id) on delete cascade,
+  points int not null check (points > 0),
+  sender_phone text,
+  receiver_phone text,
+  date timestamptz not null default now()
+);
+
+grant select, insert on public.point_transfers to authenticated;
+grant all on public.point_transfers to service_role;
+
+alter table public.point_transfers enable row level security;
+
+drop policy if exists "transfers own" on public.point_transfers;
+create policy "transfers own" on public.point_transfers for select
+  using (auth.uid() = sender_id or auth.uid() = receiver_id or public.has_role(auth.uid(),'admin'));
+
+-- Normaliza telemóvel para comparação (apenas dígitos, últimos 9)
+create or replace function public.phone_digits(_phone text)
+returns text language sql immutable as $$
+  select right(regexp_replace(coalesce(_phone,''), '\D', '', 'g'), 9)
+$$;
+
+-- Procurar destinatário pelo contacto (só expõe id + nome)
+create or replace function public.lookup_profile_by_phone(_phone text)
+returns table (id uuid, name text, phone text)
+language sql stable security definer set search_path = public as $$
+  select p.id, p.name, p.phone
+  from public.profiles p
+  where public.phone_digits(p.phone) = public.phone_digits(_phone)
+    and public.phone_digits(_phone) <> ''
+    and coalesce(p.blocked, false) = false
+  limit 1
+$$;
+
+grant execute on function public.lookup_profile_by_phone(text) to authenticated;
+
+-- Transferência atómica de pontos entre cidadãos
+create or replace function public.transfer_points(_phone text, _amount int)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  v_sender public.profiles;
+  v_receiver public.profiles;
+begin
+  if _amount is null or _amount <= 0 then
+    raise exception 'invalid_amount';
+  end if;
+
+  select * into v_sender from public.profiles where id = auth.uid() for update;
+  if v_sender.id is null then raise exception 'sender_not_found'; end if;
+  if coalesce(v_sender.blocked, false) then raise exception 'sender_blocked'; end if;
+
+  select * into v_receiver from public.profiles
+   where public.phone_digits(phone) = public.phone_digits(_phone)
+     and coalesce(blocked, false) = false
+   limit 1
+   for update;
+  if v_receiver.id is null then raise exception 'receiver_not_found'; end if;
+  if v_receiver.id = v_sender.id then raise exception 'self_transfer'; end if;
+  if v_sender.points < _amount then raise exception 'insufficient_points'; end if;
+
+  update public.profiles set points = points - _amount where id = v_sender.id;
+  update public.profiles set points = points + _amount where id = v_receiver.id;
+
+  insert into public.point_transfers (sender_id, receiver_id, points, sender_phone, receiver_phone)
+  values (v_sender.id, v_receiver.id, _amount, v_sender.phone, v_receiver.phone);
+
+  return jsonb_build_object(
+    'success', true,
+    'amount', _amount,
+    'receiver_name', v_receiver.name,
+    'receiver_phone', v_receiver.phone,
+    'sender_name', v_sender.name,
+    'sender_phone', v_sender.phone,
+    'sender_balance', v_sender.points - _amount
+  );
+end $$;
+
+grant execute on function public.transfer_points(text, int) to authenticated;
