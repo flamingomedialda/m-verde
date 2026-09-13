@@ -6,7 +6,7 @@ import { ChevronLeft, Search, Check, Minus, Plus, User as UserIcon, MessageSquar
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { createDeposit } from "@/lib/api";
+import { createDeposit, enviarSms } from "@/lib/api";
 import { assertOperatorInRadius } from "@/lib/geo";
 import {
   pointsForMaterial, formatWeight, MATERIAL_POINTS_PER_100G, type Profile,
@@ -56,33 +56,72 @@ export default function OperatorDeposit() {
   const totalPoints = materials.reduce((a, m) => a + pointsForMaterial(m, weights[m] ?? 0), 0);
   const allWeightsSet = materials.length > 0 && materials.every((m) => (weights[m] ?? 0) > 0);
 
-  const confirm = async () => {
-    if (!citizen || !op) return;
-    setBusy(true);
-    try {
-      // Geofencing: 100m do eco-ponto associado
-      const check = await assertOperatorInRadius();
-      if (!check.ok) {
-        const msg = check.error
-          ? check.error
-          : `Fora do raio permitido: ${Math.round(check.distance)} m do Eco Ponto ${check.ep?.name ?? ""} (máx. 100 m).`;
-        toast.error(msg);
-        setBusy(false);
-        return;
-      }
-      await createDeposit({
-        citizen_id: citizen.id,
-        operator_id: op.id,
-        eco_point_id: opProfile?.eco_point_id || null,
-        materials,
-        weight_g: totalWeight,
-        points: totalPoints,
-      });
-      setDone(true);
-    } catch (e) { toast.error((e as Error).message); }
-    finally { setBusy(false); }
-  };
 
+const confirm = async () => {
+  if (!citizen || !op) {
+    console.warn("[DEPÓSITO] Dados incompletos:", {
+      citizen: !!citizen,
+      operator: !!op,
+    });
+    return;
+  }
+
+  console.group("[DEPÓSITO] Início da confirmação");
+  console.time("[DEPÓSITO] Tempo total");
+
+
+  setBusy(true);
+
+  try {
+    // 1. Verificar geofencing
+
+    const check = await assertOperatorInRadius();
+
+
+    if (!check.ok) {
+      const msg = check.error
+        ? check.error
+        : `Fora do raio permitido: ${Math.round(
+            check.distance
+          )} m do Eco Ponto ${check.ep?.name ?? ""} (máx. 100 m).`;
+
+      console.warn("[DEPÓSITO] Geofencing bloqueou:", msg);
+      toast.error(msg);
+      return;
+    }
+
+    const deposit = await createDeposit({
+      citizen_id: citizen.id,
+      operator_id: op.id,
+      eco_point_id: opProfile?.eco_point_id || null,
+      materials,
+      weight_g: totalWeight,
+      points: totalPoints,
+    });
+
+
+    // 3. Preparar e enviar SMS
+    if (citizen.phone) {
+      const msgSms =
+        `M-verde: Depósito registado!\n` +
+        `Peso: ${formatWeight(totalWeight)}\n` +
+        `Pontos ganhos: +${totalPoints}\n` +
+        `Saldo actual: ${citizen.points + totalPoints} pts`;
+      try {
+        const sms = await enviarSms(citizen.phone, msgSms);
+      } catch (smsError) {
+        toast.error("Depósito criado, mas o SMS falhou.");
+      }
+    } else {
+    }
+    setDone(true);
+  } catch (e) {
+    toast.error((e as Error).message);
+  } finally {
+    setBusy(false);
+    console.groupEnd();
+  }
+};
   const back = () => step > 1 && !done ? setStep(step - 1) : nav("/operator");
 
   if (done && citizen) {
@@ -99,7 +138,7 @@ export default function OperatorDeposit() {
               <MessageSquare className="h-3.5 w-3.5" /> Confirmação
             </div>
             <pre className="mt-2 text-xs whitespace-pre-wrap text-foreground/90 font-sans bg-muted rounded-2xl p-3">
-{`M-verde:
+              {`M-verde:
 Depósito registado.
 
 Peso total: ${formatWeight(totalWeight)}
@@ -210,7 +249,7 @@ Saldo actual: ${citizen.points + totalPoints} pontos`}
                   <div className="grid grid-cols-4 gap-2 mt-3">
                     {[100, 500, 1000, 5000].map((v) => (
                       <button key={v} onClick={() => bump(m, v)} className="py-2 rounded-xl bg-accent text-primary font-bold tap-scale text-xs">
-                        +{v >= 1000 ? `${v/1000}kg` : `${v}g`}
+                        +{v >= 1000 ? `${v / 1000}kg` : `${v}g`}
                       </button>
                     ))}
                   </div>

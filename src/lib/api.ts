@@ -12,6 +12,31 @@ export async function getProfile(userId: string) {
   return data as Profile | null;
 }
 
+export async function enviarSms(phone:string, message:string) {
+  console.log(phone, message)
+  const { data, error } = await supabase.functions.invoke(
+    "send-sms",
+    {
+      body: {
+        phone,
+        message,
+      },
+    }
+  );
+
+  if (error) {
+    throw new Error(error.message);
+    console.log("erro ao enviar para edge:",error.message)
+  }
+
+  if (!data?.success) {
+    throw new Error(data?.error || "Falha no envio");
+    console.log("erro ao envio edge:",data.error)
+  }
+
+  return data.data;
+}
+
 export async function updateProfile(userId: string, patch: Partial<Profile>) {
   const { data, error } = await supabase.from("profiles").update(patch).eq("id", userId).select().single();
   if (error) throw error;

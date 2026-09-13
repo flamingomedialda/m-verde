@@ -13,7 +13,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { listAlerts, createAlert, deleteAlert } from "@/lib/api";
+import { listAlerts, createAlert, deleteAlert, listCitizens, enviarSms } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import type { AlertItem } from "@/lib/types";
 
@@ -42,7 +42,7 @@ export default function AdminAlerts() {
   const [severity, setSeverity] = useState<"low" | "medium" | "critical">("medium");
   const [area, setArea] = useState("");
 
-  const reload = () => listAlerts().then(setAlerts).catch(() => {});
+  const reload = () => listAlerts().then(setAlerts).catch(() => { });
   useEffect(() => { reload(); }, []);
 
   const resetForm = () => {
@@ -61,6 +61,17 @@ export default function AdminAlerts() {
         severity, area: area.trim() || null,
         lat: null, lng: null,
       });
+      // Enviar SMS de alerta a todos os cidadãos
+      listCitizens().then((citizens) => {
+        const areaLabel = area.trim() ? `Local: ${area.trim()}\n` : "";
+        const msg =
+          `⚠️ M-verde ALERTA: ${title.trim()}\n` +
+          areaLabel +
+          `Severidade: ${severity}`;
+        citizens.forEach((c) => {
+          if (c.phone) enviarSms(c.phone, msg).catch(() => { });
+        });
+      }).catch(() => { });
       toast.success("Alerta criado");
       setOpen(false); resetForm(); reload();
     } catch (e) {
@@ -117,7 +128,7 @@ export default function AdminAlerts() {
                 <div>
                   <Label className="text-sm">Severidade</Label>
                   <div className="grid grid-cols-3 gap-2 mt-1.5">
-                    {(["low","medium","critical"] as const).map((s) => (
+                    {(["low", "medium", "critical"] as const).map((s) => (
                       <button key={s} type="button" onClick={() => setSeverity(s)}
                         className={`py-2 rounded-xl border-2 text-xs font-semibold uppercase ${severity === s ? "border-primary bg-accent" : "border-border bg-card"}`}>
                         {s}

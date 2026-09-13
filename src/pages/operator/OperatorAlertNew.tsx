@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, Check, Camera, Droplets, Trash2, HeartPulse, AlertTriangle } from "lucide-react";
 import { OLMap } from "@/components/OLMap";
 import { useAuth } from "@/hooks/useAuth";
-import { createAlert, uploadPhoto } from "@/lib/api";
+import { createAlert, uploadPhoto, listCitizens, enviarSms } from "@/lib/api";
 import { assertOperatorInRadius } from "@/lib/geo";
 import { toast } from "sonner";
 
@@ -42,11 +42,13 @@ export default function OperatorAlertNew() {
     setBusy(true);
     try {
       const check = await assertOperatorInRadius();
-      if (!check.ok) {
-        toast.error(check.error ?? `Fora do raio permitido: ${Math.round(check.distance)} m (máx. 100 m).`);
-        setBusy(false);
-        return;
-      }
+
+      // if (!check.ok) {
+      //   toast.error(check.error ?? `Fora do raio permitido: ${Math.round(check.distance)} m (máx. 100 m).`);
+      //   setBusy(false);
+      //   return;
+      // }
+      
       let photo_url: string | null = null;
       if (photoFile) photo_url = await uploadPhoto(photoFile, "alerts");
       await createAlert({
@@ -59,6 +61,16 @@ export default function OperatorAlertNew() {
         lat: coords?.lat ?? null,
         lng: coords?.lng ?? null,
       });
+      // Enviar SMS de alerta a todos os cidadãos
+      // listCitizens().then((citizens) => {
+      //   const msg =
+      //     `⚠️ M-verde ALERTA: ${type.label}\n` +
+      //     `Local: ${area}\n` +
+      //     `Severidade: ${type.sev}`;
+      //   citizens.forEach((c) => {
+      //     if (c.phone) enviarSms(c.phone, msg).catch(() => {});
+      //   });
+      // }).catch(() => {});
       setDone(true);
     } catch (e) { toast.error((e as Error).message); }
     finally { setBusy(false); }

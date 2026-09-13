@@ -7,7 +7,7 @@ import { Package, Ticket, CheckCircle2, MapPin, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import {
-  listProducts, listStockForProduct, redeemProduct, listEcoPoints,
+  listProducts, listStockForProduct, redeemProduct, listEcoPoints, enviarSms,
 } from "@/lib/api";
 import { PRODUCT_CATEGORY_LABEL, type EcoPoint, type Product, type ProductCategory } from "@/lib/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -71,6 +71,7 @@ export default function Marketplace() {
           product={selected}
           ecoPoints={ecoPoints}
           balance={balance}
+          phone={profile?.phone ?? null}
           onClose={() => setSelected(null)}
           onRedeemed={async (code) => { setResultCode(code); setSelected(null); await refresh(); reload(); }}
         />
@@ -104,8 +105,8 @@ export default function Marketplace() {
   );
 }
 
-function RedeemDialog({ product, ecoPoints, balance, onClose, onRedeemed }:
-  { product: Product; ecoPoints: EcoPoint[]; balance: number; onClose: () => void; onRedeemed: (code: string | null) => void }) {
+function RedeemDialog({ product, ecoPoints, balance, phone, onClose, onRedeemed }:
+  { product: Product; ecoPoints: EcoPoint[]; balance: number; phone: string | null; onClose: () => void; onRedeemed: (code: string | null) => void }) {
   const [ep, setEp] = useState("");
   const [busy, setBusy] = useState(false);
   const isPhysical = product.category !== "recharge";
@@ -116,7 +117,26 @@ function RedeemDialog({ product, ecoPoints, balance, onClose, onRedeemed }:
     setBusy(true);
     try {
       const res = await redeemProduct(product.id, isPhysical ? ep : null);
-      onRedeemed(res?.code ?? null);
+      const code = res?.code ?? null;
+      // Enviar SMS ao utilizador
+      if (phone) {
+        let msg: string;
+        if (code) {
+          msg =
+            `M-verde: Troca concluída!\n` +
+            `Produto: ${product.name}\n` +
+            `Código: ${code}\n` +
+            `Guarde este código — não é reutilizável.`;
+        } else {
+          const epName = ecoPoints.find((e) => e.id === ep)?.name ?? "Eco Ponto";
+          msg =
+            `M-verde: Troca concluída!\n` +
+            `Produto: ${product.name}\n` +
+            `Levante em: ${epName}`;
+        }
+        enviarSms(phone, msg).catch(() => {});
+      }
+      onRedeemed(code);
     } catch (e) {
       const msg = (e as Error).message;
       if (msg.includes("insufficient_points")) toast.error("Pontos insuficientes");
