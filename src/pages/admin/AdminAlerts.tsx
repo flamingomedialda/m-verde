@@ -62,16 +62,16 @@ export default function AdminAlerts() {
         lat: null, lng: null,
       });
       // Enviar SMS de alerta a todos os cidadãos
-      listCitizens().then((citizens) => {
-        const areaLabel = area.trim() ? `Local: ${area.trim()}\n` : "";
-        const msg =
-          `⚠️ M-verde ALERTA: ${title.trim()}\n` +
-          areaLabel +
-          `Severidade: ${severity}`;
-        citizens.forEach((c) => {
-          if (c.phone) enviarSms(c.phone, msg).catch(() => { });
-        });
-      }).catch(() => { });
+      // listCitizens().then((citizens) => {
+      //   const areaLabel = area.trim() ? `Local: ${area.trim()}\n` : "";
+      //   const msg =
+      //     `⚠️ M-verde ALERTA: ${title.trim()}\n` +
+      //     areaLabel +
+      //     `Severidade: ${severity}`;
+      //   citizens.forEach((c) => {
+      //     if (c.phone) enviarSms(c.phone, msg).catch(() => { });
+      //   });
+      // }).catch(() => { });
       toast.success("Alerta criado");
       setOpen(false); resetForm(); reload();
     } catch (e) {
