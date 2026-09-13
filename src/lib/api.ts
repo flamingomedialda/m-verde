@@ -322,3 +322,36 @@ export async function redeemProduct(productId: string, ecoPointId?: string | nul
   return data as { success: boolean; product: string; code: string | null; category: ProductCategory };
 }
 
+
+// -------------------- Transferência de pontos --------------------
+export interface TransferLookup { id: string; name: string; phone: string | null }
+export async function lookupProfileByPhone(phone: string): Promise<TransferLookup | null> {
+  const { data, error } = await supabase.rpc("lookup_profile_by_phone", { _phone: phone });
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  return (row as TransferLookup) ?? null;
+}
+
+export interface TransferResult {
+  success: boolean;
+  amount: number;
+  receiver_name: string;
+  receiver_phone: string | null;
+  sender_name: string;
+  sender_phone: string | null;
+  sender_balance: number;
+}
+export async function transferPoints(phone: string, amount: number): Promise<TransferResult> {
+  const { data, error } = await supabase.rpc("transfer_points", { _phone: phone, _amount: amount });
+  if (error) throw error;
+  return data as TransferResult;
+}
+
+export async function listTransfers(userId: string): Promise<PointTransfer[]> {
+  const { data, error } = await supabase
+    .from("point_transfers").select("*")
+    .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
+    .order("date", { ascending: false }).limit(50);
+  if (error) throw error;
+  return (data ?? []) as PointTransfer[];
+}
